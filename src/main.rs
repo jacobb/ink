@@ -1,8 +1,14 @@
 mod markdown;
+mod search;
+mod settings;
 mod template;
+mod utils;
 mod walk;
 
-use crate::markdown::get_markdown_str;
+use crate::markdown::{frontmatter, get_markdown_str};
+use crate::search::{create_index_and_add_documents, search_index};
+use crate::settings::Settings;
+use crate::walk::{has_extension, walk_files};
 use chrono::{DateTime, Local};
 use clap::{ArgAction, Parser, Subcommand};
 use gray_matter::engine::YAML;
@@ -10,16 +16,11 @@ use gray_matter::Matter;
 use serde::Deserialize;
 use std::env;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use template::{edit_template, render_journal, render_zettel};
-use walk::walk_files;
+use utils::expand_tilde;
 use walkdir::DirEntry;
-
-#[derive(Deserialize, Debug)]
-struct TitleFrontMatter {
-    title: Option<String>,
-    tags: Option<Vec<String>>,
-}
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -38,8 +39,8 @@ enum Commands {
     /// View all notes
     List {
         /// Recurse into sub-directories within the notes folder
-        #[arg(long, short, default_value_t = false)]
-        recurse: bool,
+        #[arg(long, short)]
+        recurse: Option<bool>,
         /// Recurse into sub-directories within the notes folder
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
@@ -56,6 +57,10 @@ enum Commands {
     EditTemplate {
         slug: String,
     },
+    Index {},
+    Search {
+        query: String,
+    },
 }
 
 fn get_editor() -> String {
@@ -63,18 +68,6 @@ fn get_editor() -> String {
         Ok(value) => value,
         Err(_) => String::from("nvim"),
     }
-}
-
-fn frontmatter(markdown_input: &str) -> Option<TitleFrontMatter> {
-    let matter = Matter::<YAML>::new();
-    matter
-        .parse_with_struct::<TitleFrontMatter>(markdown_input)
-        .map(|entity| entity.data)
-}
-
-fn has_extension(entry: &DirEntry) -> bool {
-    let name = entry.file_name().to_str().unwrap();
-    name.ends_with(".md")
 }
 
 fn contains_url(entry: &DirEntry) -> bool {
@@ -92,7 +85,7 @@ fn contains_url(entry: &DirEntry) -> bool {
 
 fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
     if target_tags.is_empty() {
-        return true
+        return true;
     }
 
     let path_str = match entry.path().to_str() {
@@ -108,16 +101,22 @@ fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
     false
 }
 
-fn mark() {
-    walk_files("/Users/jacob/notes", true, |note| {
-        has_extension(note) && contains_url(note)
-    }, render_file);
+fn mark(notes_dir: &PathBuf) {
+    walk_files(
+        notes_dir,
+        true,
+        |note| has_extension(note) && contains_url(note),
+        render_file,
+    );
 }
 
-fn list(recurse_into: bool, tags: &[String]) {
-    walk_files("/Users/jacob/notes", recurse_into, |note| {
-        has_extension(note) && tag_matches(note, tags)
-    }, render_file);
+fn list(notes_dir: &PathBuf, recurse_into: bool, tags: &[String]) {
+    walk_files(
+        notes_dir,
+        recurse_into,
+        |note| has_extension(note) && tag_matches(note, tags),
+        render_file,
+    );
 }
 
 fn render_file(path_str: &str) {
@@ -125,7 +124,6 @@ fn render_file(path_str: &str) {
     if let Some(front_matter) = frontmatter(&raw_markdown) {
         if let Some(title) = front_matter.title {
             println!("{}\t{}", title, path_str);
-            // Process the file further as needed
         } else {
             println!("{}\t{}", path_str, path_str);
         }
@@ -183,12 +181,26 @@ fn edit(slug: &str) {
 fn main() {
     let cli = Cli::parse();
 
+    let config = match Settings::new() {
+        Ok(config) => config,
+        Err(e) => {
+            println!("Failed to load config: {}", e);
+            return;
+        }
+    };
+
     match &cli.command {
+        Commands::List { recurse, tags } => {
+            let final_recurse = recurse.unwrap_or(config.recurse);
+            let notes_path = expand_tilde(&config.notes_dir);
+            list(&notes_path, final_recurse, tags);
+        }
         Commands::Journal {} => {
             journal();
         }
         Commands::Mark {} => {
-            mark();
+            let notes_path = expand_tilde(&config.notes_dir);
+            mark(&notes_path);
         }
         Commands::Create {} => {
             zet();
@@ -196,8 +208,20 @@ fn main() {
         Commands::Edit { slug } => {
             edit(slug);
         }
-        Commands::List { recurse, tags } => {
-            list(*recurse, tags);
+        Commands::Index {} => {
+            let cache_path = expand_tilde(&config.cache_dir);
+            let notes_path = expand_tilde(&config.notes_dir);
+            match create_index_and_add_documents(&cache_path, &notes_path) {
+                Ok(_) => (),
+                Err(_) => println!("An error occured indexing"),
+            }
+        }
+        Commands::Search { query } => {
+            let cache_path = expand_tilde(&config.cache_dir);
+            match search_index(&cache_path, query) {
+                Ok(_) => (),
+                Err(_) => println!("Could not complete a search"),
+            }
         }
         #[allow(unused_variables)]
         Commands::EditTemplate { slug } => {

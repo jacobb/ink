@@ -43,14 +43,14 @@ fn get_journal_context() -> Value {
     let ctx = context! {
         date => format!("{}", now.format("%Y-%m-%d"))
     };
-    return ctx;
+    ctx
 }
 
 fn get_zettel_context(id: &str) -> Value {
     let ctx = context! {
         title => id
     };
-    return ctx;
+    ctx
 }
 
 pub fn edit_template() {

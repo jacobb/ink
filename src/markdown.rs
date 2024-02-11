@@ -1,5 +1,20 @@
+use gray_matter::engine::YAML;
+use gray_matter::Matter;
+use serde::Deserialize;
 use std::fs;
 // use pulldown_cmark::{html, Options, Parser};
+
+#[derive(Deserialize, Debug)]
+pub struct TitleFrontMatter {
+    pub title: Option<String>,
+    pub tags: Option<Vec<String>>,
+}
+
+pub struct ParsedMarkdown {
+    pub title: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub content: String,
+}
 
 pub fn get_markdown_str(markdown_source: &str) -> String {
     fs::read_to_string(markdown_source).expect("Something went wrong reading the file")
@@ -19,3 +34,14 @@ pub fn markdown(markdown_input: &str) -> Result<String, Box<dyn std::error::Erro
 
     Ok(html_output)
 }*/
+
+pub fn frontmatter(markdown_input: &str) -> Option<ParsedMarkdown> {
+    let matter = Matter::<YAML>::new();
+    matter
+        .parse_with_struct::<TitleFrontMatter>(markdown_input)
+        .map(|entity| ParsedMarkdown {
+            title: entity.data.title,
+            tags: entity.data.tags,
+            content: entity.content,
+        })
+}

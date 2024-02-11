@@ -1,0 +1,3 @@
+recurse = true
+# cache_dir = "~/.cache/ink" -- set via env var
+# notes_dir = "~/notes" -- set via env var

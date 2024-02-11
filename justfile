@@ -10,3 +10,6 @@ install target="debug":
 
 test cmd="view":
     ./target/debug/ink {{cmd}}
+
+run *args:
+    cargo run {{args}}
