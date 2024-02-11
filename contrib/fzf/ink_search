@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Check if fzf is installed
+if ! command -v fzf &> /dev/null; then
+    echo "fzf is not installed. Please install fzf to use this script."
+    exit 1
+fi
+
+# Ensure the EDITOR environment variable is set
+if [ -z "$EDITOR" ]; then
+    echo "EDITOR environment variable is not set. Please set it to your preferred text editor."
+    exit 1
+fi
+
+INK_PREFIX="ink search"
+INITIAL_QUERY="${*:-}"
+
+ink search "${*:-}"  |
+  fzf --color "hl:-1:underline,hl+:-1:underline:reverse" \
+      --bind "start:reload:$INK_PREFIX {q}" \
+      --disabled \
+      --query "$INITIAL_QUERY" \
+      --bind "change:reload:sleep 0.1; $INK_PREFIX {q} || true" \
+      --delimiter "\t" \
+      --preview 'bat --color=always {2}'\
+      --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+      --bind 'enter:become(vim {2})'

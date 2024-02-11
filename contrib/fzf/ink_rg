@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+NOTES_DIR="/Users/jacob/notes"
+
+# Check if fzf is installed
+if ! command -v fzf &> /dev/null; then
+    echo "fzf is not installed. Please install fzf to use this script."
+    exit 1
+fi
+
+# Ensure the EDITOR environment variable is set
+if [ -z "$EDITOR" ]; then
+    echo "EDITOR environment variable is not set. Please set it to your preferred text editor."
+    exit 1
+fi
+# ink list | fzf --preview 'bat --color=always {2}' --preview-window '~3' --with-nth=1 --delimiter='\t' | cut -f2 | sed 's/.*/"&"/' | xargs -o $EDITOR
+#
+rg  --color=always --line-number --smart-case "${*:-}" $NOTES_DIR |
+  fzf --ansi \
+      --color "hl:-1:underline,hl+:-1:underline:reverse" \
+      --delimiter : \
+      --preview 'bat --color=always {1} --highlight-line {2}' \
+      --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+      --bind 'enter:become(vim {1} +{2})'
