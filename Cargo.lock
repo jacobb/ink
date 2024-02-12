@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "ink"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "chrono",
  "clap",
@@ -611,6 +611,7 @@ dependencies = [
  "minijinja",
  "pulldown-cmark",
  "serde",
+ "serde_json",
  "tantivy",
  "walkdir",
 ]
