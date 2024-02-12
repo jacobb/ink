@@ -19,7 +19,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use template::{edit_template, render_journal, render_zettel};
-use utils::expand_tilde;
+use utils::{expand_tilde, slugify};
 use walkdir::DirEntry;
 
 #[allow(dead_code)]
@@ -53,6 +53,9 @@ enum Commands {
     /// Edit existing note
     Edit {
         slug: String,
+    },
+    Prompt {
+        title: String,
     },
     EditTemplate {
         slug: String,
@@ -167,15 +170,24 @@ fn zet() {
     cmd.arg(&zet_path).status().expect("Couldn't launch editor");
 }
 
-fn edit(slug: &str) {
+fn edit(slug: &str, title: &str) {
     let zet_path = format!("/Users/jacob/notes/{}.md", slug);
     let path = Path::new(&zet_path);
 
     let mut cmd = Command::new(get_editor());
     if !path.exists() {
-        render_zettel(&zet_path, slug).unwrap();
+        render_zettel(&zet_path, title).unwrap();
     };
     cmd.arg(&zet_path).status().expect("Couldn't launch editor");
+}
+
+fn prompt(slug: &str, title: &str) {
+    let zet_path = format!("/Users/jacob/notes/{}.md", slug);
+    let path = Path::new(&zet_path);
+
+    if !path.exists() {
+        render_zettel(&zet_path, title).unwrap();
+    };
 }
 
 fn main() {
@@ -206,7 +218,12 @@ fn main() {
             zet();
         }
         Commands::Edit { slug } => {
-            edit(slug);
+            edit(slug, slug);
+        }
+        Commands::Prompt { title } => {
+            let slug = slugify(title);
+            prompt(&slug, title);
+            println!("Created {} with id {}", title, slug);
         }
         Commands::Index {} => {
             let cache_path = expand_tilde(&config.cache_dir);
