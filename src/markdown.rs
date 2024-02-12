@@ -8,10 +8,12 @@ use std::fs;
 pub struct TitleFrontMatter {
     pub title: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub url: Option<String>,
 }
 
 pub struct ParsedMarkdown {
     pub title: Option<String>,
+    pub url: Option<String>,
     pub tags: Option<Vec<String>>,
     pub content: String,
 }
@@ -42,6 +44,7 @@ pub fn frontmatter(markdown_input: &str) -> Option<ParsedMarkdown> {
         .map(|entity| ParsedMarkdown {
             title: entity.data.title,
             tags: entity.data.tags,
+            url: entity.data.url,
             content: entity.content,
         })
 }

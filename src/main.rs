@@ -109,7 +109,7 @@ fn mark(notes_dir: &PathBuf) {
         notes_dir,
         true,
         |note| has_extension(note) && contains_url(note),
-        render_file,
+        render_bookmark,
     );
 }
 
@@ -132,6 +132,23 @@ fn render_file(path_str: &str) {
         }
     } else {
         println!("{}\t{}", path_str, path_str);
+    }
+}
+
+fn render_bookmark(path_str: &str) {
+    let raw_markdown = get_markdown_str(path_str);
+    if let Some(front_matter) = frontmatter(&raw_markdown) {
+        match (front_matter.title, front_matter.url) {
+            (Some(title), Some(url)) => {
+                println!("{}\t{}", title, url);
+            }
+            (None, Some(url)) => {
+                println!("{}\t{}", path_str, url);
+            }
+            _ => {
+                // Handle other cases, if needed
+            }
+        }
     }
 }
 
