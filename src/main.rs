@@ -59,6 +59,7 @@ enum BookmarkCommands {
     },
     New {
         url: String,
+        description: Option<String>,
     },
 }
 
@@ -74,8 +75,8 @@ fn main() {
             BookmarkCommands::List { json } => {
                 mark(*json);
             }
-            BookmarkCommands::New { url } => {
-                create_bookmark(url);
+            BookmarkCommands::New { url, description } => {
+                create_bookmark(url, description.clone());
             }
         },
         Commands::Create { title, id } => {

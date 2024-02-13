@@ -77,8 +77,9 @@ fn render_bookmark(path_str: &str) -> Option<Bookmark> {
     })
 }
 
-pub fn create_bookmark(url: &str) {
-    let note = Note::new_bookmark(url, None);
+pub fn create_bookmark(url: &str, description: Option<String>) {
+    let note = Note::new_bookmark(url, None, description);
+    println!("{}", note.description.as_ref().unwrap());
 
     if !note.file_exists() {
         note.render_new_note()

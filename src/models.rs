@@ -9,6 +9,7 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Note {
     id: String,
+    pub description: Option<String>,
     title: String,
     url: Option<String>,
     tags: HashSet<String>,
@@ -19,19 +20,25 @@ impl Note {
     pub fn new(title: String, maybe_id: Option<String>) -> Self {
         let id = maybe_id.unwrap_or(slugify(&title));
         Note {
+            description: None,
             id,
             title,
             tags: HashSet::new(),
             url: None,
         }
     }
-    pub fn new_bookmark(url: &str, maybe_id: Option<String>) -> Self {
+    pub fn new_bookmark(
+        url: &str,
+        maybe_id: Option<String>,
+        maybe_description: Option<String>,
+    ) -> Self {
         let title = match fetch_page_title(url) {
             Ok(title) => title,
             Err(_) => url.to_string(),
         };
         let id = maybe_id.unwrap_or(slugify(&title));
         let mut note = Note {
+            description: maybe_description,
             id,
             title,
             tags: HashSet::new(),

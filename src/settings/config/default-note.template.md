@@ -10,3 +10,4 @@ url: {{ note.url }}
 {%- endif %}
 {%- endif %}
 ---
+{% if note.description -%}{{ note.description }}{% endif %}
