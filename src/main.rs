@@ -34,7 +34,7 @@ enum Commands {
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
     },
-    /// View all bookmarks (ie, notes with a url attribute)
+    /// List/Create bookmarks (ie, notes with a url attribute)
     Mark {
         #[command(subcommand)]
         action: BookmarkCommands,
@@ -51,12 +51,13 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum BookmarkCommands {
-    /// View all notes
+    /// View all bookmarks
     List {
         // Return output as json
         #[arg(long)]
         json: bool,
     },
+    /// Create a new bookmark
     New {
         url: String,
         description: Option<String>,

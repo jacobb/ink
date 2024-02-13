@@ -12,4 +12,5 @@ ink mark create <url> [<description>]
 ink create <title> [<id>]
 ink prompt <title>
 ink search <query>
+ink index
 ```

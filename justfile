@@ -3,7 +3,6 @@ build:
 
 fmt:
     pre-commit run --all-files
-    
 
 release:
     cargo build --release
@@ -17,3 +16,8 @@ test cmd="view":
 
 run *args:
     cargo run {{args}}
+
+# gh
+
+pr:
+    gh pr create --assignee=@me
