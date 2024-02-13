@@ -36,24 +36,20 @@ enum Commands {
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
     },
+    /// View all bookmarks (ie, notes with a url attribute)
     Mark {
         // Return output as json
         #[arg(long)]
         json: bool,
     },
-    /// Create a new zettel/evergreen note
-    Create {
-        title: String,
-        id: Option<String>,
-    },
-    /// Edit existing note
-    Prompt {
-        title: String,
-    },
+    /// Create + Immediatley edit a new note
+    Create { title: String, id: Option<String> },
+    /// Create a new note, but do not open an edit session
+    Prompt { title: String },
+    /// Update/Create the search index
     Index {},
-    Search {
-        query: String,
-    },
+    /// Search the search index
+    Search { query: String },
 }
 
 fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
@@ -117,14 +113,10 @@ fn main() {
             prompt(&slug, title);
             println!("Created {} with id {}", title, slug);
         }
-        Commands::Index {} => {
-            let cache_path = expand_tilde(&SETTINGS.cache_dir);
-            let notes_path = SETTINGS.get_notes_path();
-            match create_index_and_add_documents(&cache_path, &notes_path) {
-                Ok(_) => (),
-                Err(_) => println!("An error occured indexing"),
-            }
-        }
+        Commands::Index {} => match create_index_and_add_documents() {
+            Ok(_) => (),
+            Err(_) => println!("An error occured indexing"),
+        },
         Commands::Search { query } => {
             let cache_path = expand_tilde(&SETTINGS.cache_dir);
             match search_index(&cache_path, query) {
