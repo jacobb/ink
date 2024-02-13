@@ -7,7 +7,7 @@ Version: 0.5.2
 
 ```bash
 ink list [-t tag1 -t tag2]
-ink mark list
+ink mark list [--json]
 ink mark create <url> [<description>]
 ink create <title> [<id>]
 ink prompt <title>
