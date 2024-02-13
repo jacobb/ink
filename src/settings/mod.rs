@@ -1,8 +1,10 @@
+use crate::expand_tilde;
 use config::{Config, ConfigError, Environment, File, FileFormat};
+use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
-// use std::env;
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -10,6 +12,7 @@ pub struct Settings {
     pub recurse: bool,
     pub cache_dir: String,
     pub notes_dir: String,
+    pub note_template: Option<String>,
 }
 
 impl Settings {
@@ -41,6 +44,20 @@ impl Settings {
         // You can deserialize (and thus freeze) the entire configuration as
         s.try_deserialize()
     }
+    pub fn get_notes_path(&self) -> PathBuf {
+        expand_tilde(&self.notes_dir)
+    }
+    pub fn get_note_template_path(&self) -> Option<PathBuf> {
+        self.note_template.as_ref().map(|dir| expand_tilde(dir))
+    }
+    pub fn get_note_template_content(&self) -> String {
+        match self.get_note_template_path() {
+            Some(note_template_path_str) => {
+                fs::read_to_string(note_template_path_str).expect("oops")
+            }
+            None => include_str!("../settings/config/default-note.template.md").to_string(),
+        }
+    }
 }
 
 fn get_config_file() -> PathBuf {
@@ -59,4 +76,8 @@ fn get_cache_dir() -> PathBuf {
             .map(|p| PathBuf::from(p).join(".cache/ink"))
             .unwrap_or_else(|_| panic!("HOME directory not found")),
     }
+}
+
+lazy_static! {
+    pub static ref SETTINGS: Settings = Settings::new().expect("Failed to load configuration");
 }

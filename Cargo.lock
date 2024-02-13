@@ -601,13 +601,14 @@ dependencies = [
 
 [[package]]
 name = "ink"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "clap",
  "config",
  "dirs",
  "gray_matter",
+ "lazy_static",
  "minijinja",
  "pulldown-cmark",
  "serde",
