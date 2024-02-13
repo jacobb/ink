@@ -1,6 +1,10 @@
 build:
     cargo build
 
+fmt:
+    pre-commit run --all-files
+    
+
 release:
     cargo build --release
     cp -p ./target/release/ink ~/bin/ink

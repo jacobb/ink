@@ -1,4 +1,5 @@
 mod bookmarks;
+mod list;
 mod markdown;
 mod models;
 mod search;
@@ -8,16 +9,13 @@ mod utils;
 mod walk;
 mod write;
 
-use crate::bookmarks::mark;
-use crate::markdown::{frontmatter, get_markdown_str};
+use crate::bookmarks::{create_bookmark, mark};
+use crate::list::list;
 use crate::search::{create_index_and_add_documents, search_index};
 use crate::settings::SETTINGS;
-use crate::walk::{has_extension, walk_files};
+use crate::utils::slugify;
 use crate::write::{create_note, prompt};
 use clap::{ArgAction, Parser, Subcommand};
-use std::path::PathBuf;
-use utils::{expand_tilde, slugify};
-use walkdir::DirEntry;
 
 #[derive(Parser)]
 struct Cli {
@@ -36,64 +34,33 @@ enum Commands {
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
     },
+    /// View all bookmarks (ie, notes with a url attribute)
     Mark {
+        #[command(subcommand)]
+        action: BookmarkCommands,
+    },
+    /// Create + Immediatley edit a new note
+    Create { title: String, id: Option<String> },
+    /// Create a new note, but do not open an edit session
+    Prompt { title: String },
+    /// Update/Create the search index
+    Index {},
+    /// Search the search index
+    Search { query: String },
+}
+
+#[derive(Subcommand)]
+enum BookmarkCommands {
+    /// View all notes
+    List {
         // Return output as json
         #[arg(long)]
         json: bool,
     },
-    /// Create a new zettel/evergreen note
-    Create {
-        title: String,
-        id: Option<String>,
+    New {
+        url: String,
+        description: Option<String>,
     },
-    /// Edit existing note
-    Prompt {
-        title: String,
-    },
-    Index {},
-    Search {
-        query: String,
-    },
-}
-
-fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
-    if target_tags.is_empty() {
-        return true;
-    }
-
-    let path_str = match entry.path().to_str() {
-        Some(s) => s,
-        None => return false,
-    };
-    let raw_markdown = get_markdown_str(path_str);
-    if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let Some(tags) = front_matter.tags {
-            return tags.iter().any(|tag| target_tags.contains(tag));
-        }
-    }
-    false
-}
-
-fn list(notes_dir: &PathBuf, recurse_into: bool, tags: &[String]) {
-    walk_files(
-        notes_dir,
-        recurse_into,
-        |note| has_extension(note) && tag_matches(note, tags),
-        render_file,
-    );
-}
-
-fn render_file(path_str: &str) {
-    let raw_markdown = get_markdown_str(path_str);
-    if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let Some(title) = front_matter.title {
-            println!("{}\t{}", title, path_str);
-        } else {
-            println!("{}\t{}", path_str, path_str);
-        }
-    } else {
-        println!("{}\t{}", path_str, path_str);
-    }
 }
 
 fn main() {
@@ -102,13 +69,16 @@ fn main() {
     match &cli.command {
         Commands::List { recurse, tags } => {
             let final_recurse = recurse.unwrap_or(SETTINGS.recurse);
-            let notes_path = expand_tilde(&SETTINGS.notes_dir);
-            list(&notes_path, final_recurse, tags);
+            list(final_recurse, tags);
         }
-        Commands::Mark { json } => {
-            let notes_path = expand_tilde(&SETTINGS.notes_dir);
-            mark(&notes_path, *json);
-        }
+        Commands::Mark { action } => match action {
+            BookmarkCommands::List { json } => {
+                mark(*json);
+            }
+            BookmarkCommands::New { url, description } => {
+                create_bookmark(url, description.clone());
+            }
+        },
         Commands::Create { title, id } => {
             create_note(title, id.clone());
         }
@@ -117,20 +87,13 @@ fn main() {
             prompt(&slug, title);
             println!("Created {} with id {}", title, slug);
         }
-        Commands::Index {} => {
-            let cache_path = expand_tilde(&SETTINGS.cache_dir);
-            let notes_path = SETTINGS.get_notes_path();
-            match create_index_and_add_documents(&cache_path, &notes_path) {
-                Ok(_) => (),
-                Err(_) => println!("An error occured indexing"),
-            }
-        }
-        Commands::Search { query } => {
-            let cache_path = expand_tilde(&SETTINGS.cache_dir);
-            match search_index(&cache_path, query) {
-                Ok(_) => (),
-                Err(_) => println!("Could not complete a search"),
-            }
-        }
+        Commands::Index {} => match create_index_and_add_documents() {
+            Ok(_) => (),
+            Err(_) => println!("An error occured indexing"),
+        },
+        Commands::Search { query } => match search_index(query) {
+            Ok(_) => (),
+            Err(_) => println!("Could not complete a search"),
+        },
     }
 }

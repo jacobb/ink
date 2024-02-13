@@ -1,16 +1,26 @@
 use crate::markdown::{frontmatter, get_markdown_str};
+use crate::settings::SETTINGS;
+use crate::utils::ensure_directory_exists;
+use crate::walk::{has_extension, walk_files};
 use std::path::PathBuf;
 use tantivy::{
     collector::TopDocs, query::QueryParser, schema::*, Index, IndexWriter, TantivyError,
 };
 
-use crate::utils::ensure_directory_exists;
-use crate::walk::{has_extension, walk_files};
-
 struct MarkdownDocument {
     title: String,
     body: String,
     path: String,
+}
+
+impl MarkdownDocument {
+    fn to_tantivy_document(&self, schema: &Schema) -> Document {
+        let mut doc = Document::new();
+        doc.add_text(schema.get_field("title").unwrap(), &self.title);
+        doc.add_text(schema.get_field("path").unwrap(), &self.path);
+        doc.add_text(schema.get_field("body").unwrap(), &self.body);
+        doc
+    }
 }
 
 // Indexing documents
@@ -49,16 +59,6 @@ fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) 
     }
 }
 
-impl MarkdownDocument {
-    fn to_tantivy_document(&self, schema: &Schema) -> Document {
-        let mut doc = Document::new();
-        doc.add_text(schema.get_field("title").unwrap(), &self.title);
-        doc.add_text(schema.get_field("path").unwrap(), &self.path);
-        doc.add_text(schema.get_field("body").unwrap(), &self.body);
-        doc
-    }
-}
-
 // Handling Index
 fn open_or_create_index(index_path: &PathBuf, schema: &Schema) -> Result<Index, TantivyError> {
     ensure_directory_exists(index_path)?;
@@ -71,10 +71,7 @@ fn open_or_create_index(index_path: &PathBuf, schema: &Schema) -> Result<Index, 
     }
 }
 
-pub fn create_index_and_add_documents(
-    index_path: &PathBuf,
-    notes_path: &PathBuf,
-) -> tantivy::Result<()> {
+pub fn create_index_and_add_documents() -> tantivy::Result<()> {
     // Create a schema builder
     let mut schema_builder = Schema::builder();
     schema_builder.add_text_field("title", TEXT | STORED);
@@ -84,7 +81,7 @@ pub fn create_index_and_add_documents(
     let schema = schema_builder.build();
 
     // Create or open the index
-    let index = match open_or_create_index(index_path, &schema) {
+    let index = match open_or_create_index(&SETTINGS.get_cache_path(), &schema) {
         Ok(index) => index,
         Err(e) => {
             println!("Something went wrong generating the index {}", e);
@@ -94,7 +91,7 @@ pub fn create_index_and_add_documents(
     // Create an index writer
     let mut index_writer = index.writer(50_000_000)?;
 
-    walk_files(notes_path, true, has_extension, |path| {
+    walk_files(&SETTINGS.get_notes_path(), true, has_extension, |path| {
         index_file(path, &schema, &index_writer)
     });
 
@@ -123,8 +120,9 @@ fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String
     Some((title_value.to_string(), path_value.to_string()))
 }
 
-pub fn search_index(index_path: &PathBuf, query_str: &str) -> tantivy::Result<()> {
+pub fn search_index(query_str: &str) -> tantivy::Result<()> {
     // Open the index
+    let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
 
     // Get the schema and create a query parser

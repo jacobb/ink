@@ -7,9 +7,9 @@ Version: 0.3.0
 
 ```bash
 ink list [-t tag1 -t tag2]
-ink mark
-ink edit <id>
-ink create
+ink mark list
+ink mark create <url> [<description>]
+ink create <title> [<id>]
 ink prompt <title>
 ink search <query>
 ```

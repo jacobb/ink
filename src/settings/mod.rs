@@ -1,4 +1,4 @@
-use crate::expand_tilde;
+use crate::utils::expand_tilde;
 use config::{Config, ConfigError, Environment, File, FileFormat};
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -46,6 +46,9 @@ impl Settings {
     }
     pub fn get_notes_path(&self) -> PathBuf {
         expand_tilde(&self.notes_dir)
+    }
+    pub fn get_cache_path(&self) -> PathBuf {
+        expand_tilde(&self.cache_dir)
     }
     pub fn get_note_template_path(&self) -> Option<PathBuf> {
         self.note_template.as_ref().map(|dir| expand_tilde(dir))
