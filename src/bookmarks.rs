@@ -17,6 +17,7 @@ struct BookmarkFrontMatter {
 
 #[derive(Serialize)]
 struct Bookmark {
+    path: String,
     title: String,
     url: String,
 }
@@ -68,8 +69,13 @@ pub fn mark(is_json: bool) {
 fn render_bookmark(path_str: &str) -> Option<Bookmark> {
     let raw_markdown = get_markdown_str(path_str);
     frontmatter(&raw_markdown).and_then(|fm| match (fm.title, fm.url) {
-        (Some(title), Some(url)) => Some(Bookmark { title, url }),
+        (Some(title), Some(url)) => Some(Bookmark {
+            path: path_str.to_string(),
+            title,
+            url,
+        }),
         (None, Some(url)) => Some(Bookmark {
+            path: path_str.to_string(),
             title: path_str.to_string(),
             url,
         }),
