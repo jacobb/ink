@@ -1,0 +1,2 @@
+#!/opt/homebrew/bin/zsh
+/Users/jacob/bin/ink mark --json | jq '{items: [.[] | {uid: .title, title: .title, subtitle: .url, arg: .url, autocomplete: .title, icon: {type: "fileicon", path: .url}}]}'
