@@ -9,11 +9,11 @@ mod utils;
 mod walk;
 mod write;
 
-use crate::bookmarks::mark;
+use crate::bookmarks::{create_bookmark, mark};
 use crate::list::list;
 use crate::search::{create_index_and_add_documents, search_index};
 use crate::settings::SETTINGS;
-use crate::utils::{expand_tilde, slugify};
+use crate::utils::slugify;
 use crate::write::{create_note, prompt};
 use clap::{ArgAction, Parser, Subcommand};
 
@@ -36,9 +36,8 @@ enum Commands {
     },
     /// View all bookmarks (ie, notes with a url attribute)
     Mark {
-        // Return output as json
-        #[arg(long)]
-        json: bool,
+        #[command(subcommand)]
+        action: BookmarkCommands,
     },
     /// Create + Immediatley edit a new note
     Create { title: String, id: Option<String> },
@@ -50,19 +49,35 @@ enum Commands {
     Search { query: String },
 }
 
+#[derive(Subcommand)]
+enum BookmarkCommands {
+    /// View all notes
+    List {
+        // Return output as json
+        #[arg(long)]
+        json: bool,
+    },
+    New {
+        url: String,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
         Commands::List { recurse, tags } => {
             let final_recurse = recurse.unwrap_or(SETTINGS.recurse);
-            let notes_path = expand_tilde(&SETTINGS.notes_dir);
-            list(&notes_path, final_recurse, tags);
+            list(final_recurse, tags);
         }
-        Commands::Mark { json } => {
-            let notes_path = expand_tilde(&SETTINGS.notes_dir);
-            mark(&notes_path, *json);
-        }
+        Commands::Mark { action } => match action {
+            BookmarkCommands::List { json } => {
+                mark(*json);
+            }
+            BookmarkCommands::New { url } => {
+                create_bookmark(url);
+            }
+        },
         Commands::Create { title, id } => {
             create_note(title, id.clone());
         }
@@ -75,12 +90,9 @@ fn main() {
             Ok(_) => (),
             Err(_) => println!("An error occured indexing"),
         },
-        Commands::Search { query } => {
-            let cache_path = expand_tilde(&SETTINGS.cache_dir);
-            match search_index(&cache_path, query) {
-                Ok(_) => (),
-                Err(_) => println!("Could not complete a search"),
-            }
-        }
+        Commands::Search { query } => match search_index(query) {
+            Ok(_) => (),
+            Err(_) => println!("Could not complete a search"),
+        },
     }
 }

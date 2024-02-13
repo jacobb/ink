@@ -1,10 +1,12 @@
 use crate::markdown::{frontmatter, get_markdown_str};
+use crate::models::Note;
+use crate::settings::SETTINGS;
 use crate::walk::{has_extension, walk_files};
+
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::path::PathBuf;
 use walkdir::DirEntry;
 
 #[allow(dead_code)]
@@ -32,7 +34,8 @@ fn contains_url(entry: &DirEntry) -> bool {
     result.is_some()
 }
 
-pub fn mark(notes_dir: &PathBuf, is_json: bool) {
+pub fn mark(is_json: bool) {
+    let notes_dir = &SETTINGS.get_notes_path();
     if is_json {
         // For JSON output, collect bookmarks and then serialize
         let bookmarks = RefCell::new(Vec::new());
@@ -72,4 +75,12 @@ fn render_bookmark(path_str: &str) -> Option<Bookmark> {
         }),
         _ => None,
     })
+}
+
+pub fn create_bookmark(url: &str) {
+    let note = Note::new_bookmark(url, None);
+
+    if !note.file_exists() {
+        note.render_new_note()
+    };
 }

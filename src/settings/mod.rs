@@ -1,4 +1,4 @@
-use crate::expand_tilde;
+use crate::utils::expand_tilde;
 use config::{Config, ConfigError, Environment, File, FileFormat};
 use lazy_static::lazy_static;
 use serde::Deserialize;

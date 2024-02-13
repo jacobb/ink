@@ -120,8 +120,9 @@ fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String
     Some((title_value.to_string(), path_value.to_string()))
 }
 
-pub fn search_index(index_path: &PathBuf, query_str: &str) -> tantivy::Result<()> {
+pub fn search_index(query_str: &str) -> tantivy::Result<()> {
     // Open the index
+    let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
 
     // Get the schema and create a query parser

@@ -1,6 +1,6 @@
 use crate::markdown::{frontmatter, get_markdown_str};
+use crate::settings::SETTINGS;
 use crate::walk::{has_extension, walk_files};
-use std::path::PathBuf;
 use walkdir::DirEntry;
 
 fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
@@ -21,9 +21,9 @@ fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
     false
 }
 
-pub fn list(notes_dir: &PathBuf, recurse_into: bool, tags: &[String]) {
+pub fn list(recurse_into: bool, tags: &[String]) {
     walk_files(
-        notes_dir,
+        &SETTINGS.get_notes_path(),
         recurse_into,
         |note| has_extension(note) && tag_matches(note, tags),
         render_file,
