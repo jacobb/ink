@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub struct Note {
     id: String,
     pub description: Option<String>,
-    title: String,
+    pub title: String,
     url: Option<String>,
     tags: HashSet<String>,
 }

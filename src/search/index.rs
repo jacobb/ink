@@ -3,33 +3,40 @@ use crate::settings::SETTINGS;
 use crate::utils::ensure_directory_exists;
 use crate::walk::{has_extension, walk_files};
 use std::path::PathBuf;
-use tantivy::{
-    collector::TopDocs, query::QueryParser, schema::*, Index, IndexWriter, TantivyError,
-};
+use tantivy::tokenizer::NgramTokenizer;
+use tantivy::{schema::*, Index, IndexWriter, TantivyError};
 
 struct MarkdownDocument {
     title: String,
     body: String,
     path: String,
+    tags: Vec<String>,
 }
 
 impl MarkdownDocument {
     fn to_tantivy_document(&self, schema: &Schema) -> Document {
         let mut doc = Document::new();
         doc.add_text(schema.get_field("title").unwrap(), &self.title);
+        doc.add_text(
+            schema.get_field("typeahead_title").unwrap(),
+            &self.title.to_lowercase(),
+        );
         doc.add_text(schema.get_field("path").unwrap(), &self.path);
         doc.add_text(schema.get_field("body").unwrap(), &self.body);
+        for tag in &self.tags {
+            let facet = Facet::from(&format!("/tag/{}", tag));
+            doc.add_facet(schema.get_field("tag").unwrap(), facet);
+        }
         doc
     }
 }
-
-// Indexing documents
 
 fn add_document(
     doc: &MarkdownDocument,
     index_writer: &IndexWriter,
     schema: &Schema,
 ) -> Result<(), TantivyError> {
+    println!("{}", doc.path);
     let path_field: Field = schema.get_field("path").unwrap();
 
     // Create a term to identify the document to delete
@@ -45,10 +52,15 @@ fn add_document(
 fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) {
     let raw_markdown = get_markdown_str(markdown_path);
     if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let (Some(title), body) = (front_matter.title, front_matter.content) {
+        if let (Some(title), tags, body) = (
+            front_matter.title,
+            front_matter.tags.unwrap_or(Vec::new()),
+            front_matter.content,
+        ) {
             let doc = MarkdownDocument {
                 title,
                 body,
+                tags,
                 path: markdown_path.to_string(),
             };
             // Handle the case where adding a document fails.
@@ -71,23 +83,34 @@ fn open_or_create_index(index_path: &PathBuf, schema: &Schema) -> Result<Index, 
     }
 }
 
-pub fn create_index_and_add_documents() -> tantivy::Result<()> {
-    // Create a schema builder
+fn get_index(schema: &Schema) -> Result<Index, TantivyError> {
+    // Create or open the index
+    let index = open_or_create_index(&SETTINGS.get_cache_path(), schema)?;
+    let ngram_tokenizer = NgramTokenizer::new(2, 7, false).unwrap();
+    index.tokenizers().register("ngram", ngram_tokenizer);
+    Ok(index)
+}
+
+fn get_schema() -> Schema {
     let mut schema_builder = Schema::builder();
-    schema_builder.add_text_field("title", TEXT | STORED);
+    let typeahead_options = TextOptions::default().set_stored().set_indexing_options(
+        TextFieldIndexing::default()
+            .set_tokenizer("ngram")
+            .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+    );
+    schema_builder.add_text_field("typeahead_title", typeahead_options);
+    schema_builder.add_text_field("title", STRING | STORED);
     schema_builder.add_text_field("body", TEXT);
     schema_builder.add_text_field("path", STRING | STORED);
+    schema_builder.add_facet_field("tag", INDEXED | STORED);
     // Build the schema
-    let schema = schema_builder.build();
+    schema_builder.build()
+}
 
-    // Create or open the index
-    let index = match open_or_create_index(&SETTINGS.get_cache_path(), &schema) {
-        Ok(index) => index,
-        Err(e) => {
-            println!("Something went wrong generating the index {}", e);
-            return Err(e);
-        }
-    };
+pub fn create_index_and_add_documents() -> tantivy::Result<()> {
+    let schema = get_schema();
+    let index = get_index(&schema)?;
+
     // Create an index writer
     let mut index_writer = index.writer(50_000_000)?;
 
@@ -100,57 +123,5 @@ pub fn create_index_and_add_documents() -> tantivy::Result<()> {
     let reader = index.reader()?;
     let searcher = reader.searcher();
     println!("Indexed {} documents", searcher.num_docs());
-    Ok(())
-}
-
-// Searching
-fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String, String)> {
-    // Get the field references from the schema
-    let title_field = schema
-        .get_field("title")
-        .expect("Title field does not exist.");
-    let path_field = schema
-        .get_field("path")
-        .expect("Path field does not exist.");
-
-    // Extract the values from the document
-    let title_value = document.get_first(title_field)?.as_text()?;
-    let path_value = document.get_first(path_field)?.as_text()?;
-
-    Some((title_value.to_string(), path_value.to_string()))
-}
-
-pub fn search_index(query_str: &str) -> tantivy::Result<()> {
-    // Open the index
-    let index_path = &SETTINGS.get_cache_path();
-    let index = Index::open_in_dir(index_path)?;
-
-    // Get the schema and create a query parser
-    let schema = index.schema();
-    let query_parser = QueryParser::for_index(
-        &index,
-        vec![
-            schema.get_field("title").unwrap(),
-            schema.get_field("body").unwrap(),
-            schema.get_field("path").unwrap(),
-        ],
-    );
-
-    // Parse the query
-    let query = query_parser.parse_query(query_str)?;
-
-    // Create a searcher
-    let searcher = index.reader()?.searcher();
-
-    // Search the index
-    let top_docs = searcher.search(&query, &TopDocs::with_limit(10))?;
-
-    for (_score, doc_address) in top_docs {
-        let retrieved_doc = searcher.doc(doc_address)?;
-        if let Some((title, path)) = extract_stored_fields(&retrieved_doc, &schema) {
-            println!("{}\t{}", title, path)
-        }
-    }
-
     Ok(())
 }

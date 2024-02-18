@@ -94,7 +94,7 @@ fn main() {
         },
         Commands::Search { query } => match search_index(query) {
             Ok(_) => (),
-            Err(_) => println!("Could not complete a search"),
+            Err(e) => println!("Could not complete a search {}", e),
         },
     }
 }
