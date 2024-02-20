@@ -3,6 +3,9 @@ name = "ink"
 version = "0.5.2"
 edition = "2021"
 
+[profile.release]
+strip = "symbols"
+
 [dependencies]
 clap = { version = "4.5.0", features = ["derive"] }
 config = {version = "0.14.0", features = ["toml"] }
