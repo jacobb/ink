@@ -1,4 +1,5 @@
 use crate::models::Note;
+use crate::prompt::ParsedQuery;
 use std::env;
 use std::process::Command;
 
@@ -21,24 +22,13 @@ pub fn create_note(title: &str, slug: Option<String>) {
         .expect("Couldn't launch editor");
 }
 
-/*
-pub fn edit_note(slug: &str, title: &str) {
-    let zet_path = format!("/Users/jacob/notes/{}.md", slug);
-    let path = Path::new(&zet_path);
-
-    let mut cmd = Command::new(get_editor());
-    if !path.exists() {
-        render_zettel(&zet_path, title).unwrap();
-    };
-    cmd.arg(&zet_path).status().expect("Couldn't launch editor");
-}
-*/
-
-pub fn prompt(slug: &str, title: &str) {
-    let mut note = Note::new(title.to_string(), Some(slug.to_string()));
+pub fn prompt(title: &str) -> Note {
+    let parsed_prompt = ParsedQuery::from_query(title);
+    let mut note = Note::from_parsed_prompt(parsed_prompt);
     note.add_tag("prompt".to_string());
 
     if !note.file_exists() {
         note.render_new_note()
     };
+    note
 }

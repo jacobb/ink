@@ -2,6 +2,7 @@ mod bookmarks;
 mod list;
 mod markdown;
 mod models;
+mod prompt;
 mod search;
 mod settings;
 mod template;
@@ -13,8 +14,7 @@ use crate::bookmarks::{create_bookmark, mark};
 use crate::list::list;
 use crate::search::{create_index_and_add_documents, search_index};
 use crate::settings::SETTINGS;
-use crate::utils::slugify;
-use crate::write::{create_note, prompt};
+use crate::write::{create_note, prompt as process_prompt};
 use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser)]
@@ -42,7 +42,7 @@ enum Commands {
     /// Create + Immediatley edit a new note
     Create { title: String, id: Option<String> },
     /// Create a new note, but do not open an edit session
-    Prompt { title: String },
+    Prompt { prompt: String },
     /// Update/Create the search index
     Index {},
     /// Search the search index
@@ -83,10 +83,9 @@ fn main() {
         Commands::Create { title, id } => {
             create_note(title, id.clone());
         }
-        Commands::Prompt { title } => {
-            let slug = slugify(title);
-            prompt(&slug, title);
-            println!("Created {} with id {}", title, slug);
+        Commands::Prompt { prompt } => {
+            let note = process_prompt(prompt);
+            println!("Created {} with id {}", note.title, note.id,);
         }
         Commands::Index {} => match create_index_and_add_documents() {
             Ok(_) => (),

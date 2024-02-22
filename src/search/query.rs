@@ -1,34 +1,7 @@
+use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::{collector::TopDocs, query::*, schema::*, Index};
-
-struct ParsedQuery {
-    #[allow(dead_code)]
-    original_query: String,
-    query: String,
-    tags: Vec<String>,
-}
-
-impl ParsedQuery {
-    fn from_query(query: &str) -> Self {
-        let mut tags = Vec::new();
-        let mut query_parts = Vec::new();
-
-        for part in query.split_whitespace() {
-            if part.starts_with('#') {
-                tags.push(part.trim_start_matches('#').to_string());
-            } else {
-                query_parts.push(part.to_string());
-            }
-        }
-
-        ParsedQuery {
-            original_query: query.to_string(),
-            query: query_parts.join(" "),
-            tags,
-        }
-    }
-}
 
 fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String, String)> {
     // Get the field references from the schema

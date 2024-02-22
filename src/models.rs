@@ -1,3 +1,4 @@
+use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use crate::template::render_note;
 use crate::utils::slugify;
@@ -8,7 +9,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Note {
-    id: String,
+    pub id: String,
     pub description: Option<String>,
     pub title: String,
     url: Option<String>,
@@ -25,6 +26,15 @@ impl Note {
             title,
             tags: HashSet::new(),
             url: None,
+        }
+    }
+    pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
+        Note {
+            description: None,
+            id: parsed_query.get_slug(),
+            title: parsed_query.query.clone(),
+            tags: parsed_query.tags.into_iter().collect(),
+            url: parsed_query.url,
         }
     }
     pub fn new_bookmark(

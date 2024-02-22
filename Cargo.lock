@@ -955,6 +955,7 @@ dependencies = [
  "lazy_static",
  "minijinja",
  "pulldown-cmark",
+ "regex",
  "reqwest",
  "scraper",
  "serde",
