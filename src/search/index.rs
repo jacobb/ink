@@ -36,7 +36,6 @@ fn add_document(
     index_writer: &IndexWriter,
     schema: &Schema,
 ) -> Result<(), TantivyError> {
-    println!("{}", doc.path);
     let path_field: Field = schema.get_field("path").unwrap();
 
     // Create a term to identify the document to delete
