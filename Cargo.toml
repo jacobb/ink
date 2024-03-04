@@ -22,3 +22,4 @@ lazy_static = "1.4"
 reqwest = { version = "0.11", features = ["json", "blocking"] }
 scraper = "0.12"
 regex = "1.10.3"
+mio = "0.8.11"
