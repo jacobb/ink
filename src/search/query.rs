@@ -2,6 +2,7 @@ use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::{collector::TopDocs, query::*, schema::*, Index};
+//Okokok
 
 fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String, String)> {
     // Get the field references from the schema
@@ -30,6 +31,11 @@ pub fn search_index(query: &str) -> tantivy::Result<()> {
 
     let schema = index.schema();
     let mut queries: Vec<(Occur, Box<dyn Query>)> = Vec::new();
+
+    // Create a collector that uses a weighted score
+    let title_weight = 2.0;
+    let lookahead_weight = 1.5;
+
     if !parsed_query.query.is_empty() {
         let text_query = TermQuery::new(
             Term::from_field_text(
@@ -38,15 +44,26 @@ pub fn search_index(query: &str) -> tantivy::Result<()> {
             ),
             IndexRecordOption::Basic,
         );
-        queries.push((Occur::Must, Box::new(text_query)));
+        let boosted_text_query = BoostQuery::new(Box::new(text_query), lookahead_weight);
+        queries.push((Occur::Should, Box::new(boosted_text_query)));
+
+        let title_query = TermQuery::new(
+            Term::from_field_text(schema.get_field("title").unwrap(), &parsed_query.query),
+            IndexRecordOption::Basic,
+        );
+        let boosted_title_query = BoostQuery::new(Box::new(title_query), title_weight);
+        queries.push((Occur::Should, Box::new(boosted_title_query)));
+
+        let body_query = QueryParser::for_index(&index, vec![schema.get_field("body").unwrap()])
+            .parse_query(&parsed_query.query)?;
+        queries.push((Occur::Should, Box::new(body_query)));
     }
 
     for tag in parsed_query.tags {
         let facet = Facet::from(&format!("/tag/{}", tag));
         let facet_term = Term::from_facet(schema.get_field("tag").unwrap(), &facet);
         let facet_query = TermQuery::new(facet_term, IndexRecordOption::Basic);
-        let facet_tuple = (Occur::Must, Box::new(facet_query) as Box<dyn Query>);
-        queries.push(facet_tuple);
+        queries.push((Occur::Must, Box::new(facet_query)));
     }
 
     let combined_query = BooleanQuery::new(queries);

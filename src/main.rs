@@ -42,7 +42,11 @@ enum Commands {
     /// Create + Immediatley edit a new note
     Create { title: String, id: Option<String> },
     /// Create a new note, but do not open an edit session
-    Prompt { prompt: String },
+    Prompt {
+        prompt: String,
+        #[arg(long = "path-only")]
+        path_only: bool,
+    },
     /// Update/Create the search index
     Index {},
     /// Search the search index
@@ -83,9 +87,13 @@ fn main() {
         Commands::Create { title, id } => {
             create_note(title, id.clone());
         }
-        Commands::Prompt { prompt } => {
+        Commands::Prompt { path_only, prompt } => {
             let note = process_prompt(prompt);
-            println!("Created {} with id {}", note.title, note.id,);
+            if *path_only {
+                println!("{}", note.get_file_path().to_str().unwrap());
+            } else {
+                println!("Created {} with id {}", note.title, note.id,);
+            }
         }
         Commands::Index {} => match create_index_and_add_documents() {
             Ok(_) => (),
