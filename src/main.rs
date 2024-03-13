@@ -30,7 +30,7 @@ enum Commands {
         /// Recurse into sub-directories within the notes folder
         #[arg(long, short)]
         recurse: Option<bool>,
-        /// Recurse into sub-directories within the notes folder
+        /// Tag to limit results by
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
     },
