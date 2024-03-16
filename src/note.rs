@@ -1,0 +1,210 @@
+use crate::markdown::{frontmatter, get_markdown_str};
+use crate::prompt::ParsedQuery;
+use crate::settings::SETTINGS;
+use crate::template::render_note;
+use crate::utils::slugify;
+use scraper::{Html, Selector};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::Deserialize;
+use std::collections::HashSet;
+use std::fmt;
+use std::path::PathBuf;
+
+#[derive(Debug)]
+pub struct NoteError {
+    msg: String,
+}
+
+impl fmt::Display for NoteError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NoteError: {}", self.msg)
+    }
+}
+
+use tantivy::schema::{Document, Facet, Schema};
+
+#[derive(Debug, Deserialize)]
+pub struct Note {
+    pub id: String,
+    pub title: String,
+
+    pub body: Option<String>,
+    pub tags: HashSet<String>,
+    pub url: Option<String>,
+}
+
+impl Serialize for Note {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("Note", 3)?;
+        s.serialize_field("id", &self.id)?;
+        s.serialize_field("title", &self.title)?;
+        s.serialize_field("body", &self.body)?;
+        s.serialize_field("tags", &self.tags)?;
+        s.serialize_field("url", &self.url)?;
+        s.serialize_field("path", &self.get_file_path().to_str())?;
+        s.end()
+    }
+}
+
+impl Note {
+    pub fn new(title: String, maybe_id: Option<String>) -> Self {
+        let id = maybe_id.unwrap_or(slugify(&title));
+        Note {
+            body: None,
+            id,
+            title,
+            tags: HashSet::new(),
+            url: None,
+        }
+    }
+    pub fn from_markdown_file(path: &str) -> Result<Self, NoteError> {
+        let raw_markdown = get_markdown_str(path);
+        if let Some(front_matter) = frontmatter(&raw_markdown) {
+            if let (Some(title), tags, body) = (
+                front_matter.title,
+                front_matter.tags.unwrap_or(Vec::new()),
+                front_matter.content,
+            ) {
+                let note = Note {
+                    title,
+                    body: Some(body),
+                    id: get_id_from_path(path),
+                    url: Some("tmp.com".to_string()),
+                    tags: tags.into_iter().collect(),
+                };
+                return Ok(note);
+            }
+        }
+        Err(NoteError {
+            msg: "Oops".to_string(),
+        })
+    }
+    pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
+        Note {
+            body: None,
+            id: parsed_query.get_slug(),
+            title: parsed_query.query.clone(),
+            tags: parsed_query.tags.into_iter().collect(),
+            url: parsed_query.url,
+        }
+    }
+    pub fn from_tantivy_document(document: &Document, schema: &Schema) -> Self {
+        let tag_facets = get_field_facets(document, schema, "tag");
+        let tags: HashSet<String> = tag_facets
+            .into_iter()
+            .map(|facet| facet.to_string().replace("/tag/", "").to_string())
+            .collect();
+
+        let path = get_field_string_from_document(document, schema, "path").unwrap();
+        let id_str = get_id_from_path(&path);
+        Note {
+            body: get_field_string_from_document(document, schema, "body"),
+            id: id_str,
+            title: get_field_string_from_document(document, schema, "title")
+                .expect("Title is required"),
+            url: None,
+            tags,
+        }
+    }
+
+    pub fn to_tantivy_document(&self, schema: &Schema) -> Document {
+        let mut doc = Document::new();
+        let body = self.body.as_deref().unwrap_or_default();
+        doc.add_text(schema.get_field("title").unwrap(), &self.title);
+        doc.add_text(
+            schema.get_field("typeahead_title").unwrap(),
+            &self.title.to_lowercase(),
+        );
+        doc.add_text(
+            schema.get_field("path").unwrap(),
+            self.get_file_path()
+                .to_str()
+                .expect("Path required to index document"),
+        );
+        doc.add_text(schema.get_field("body").unwrap(), body);
+        for tag in &self.tags {
+            let facet = Facet::from(&format!("/tag/{}", tag));
+            doc.add_facet(schema.get_field("tag").unwrap(), facet);
+        }
+        doc
+    }
+    pub fn new_bookmark(
+        url: &str,
+        maybe_id: Option<String>,
+        maybe_description: Option<String>,
+    ) -> Self {
+        let title = match fetch_page_title(url) {
+            Ok(title) => title,
+            Err(_) => url.to_string(),
+        };
+        let id = maybe_id.unwrap_or(slugify(&title));
+        let mut note = Note {
+            body: maybe_description,
+            id,
+            title,
+            tags: HashSet::new(),
+            url: Some(url.to_string()),
+        };
+        note.tags.insert("bookmark".to_string());
+        note
+    }
+    pub fn add_tag(&mut self, tag: String) {
+        self.tags.insert(tag);
+    }
+    pub fn get_file_path(&self) -> PathBuf {
+        SETTINGS.get_notes_path().join(format!("{}.md", self.id))
+    }
+    pub fn file_exists(&self) -> bool {
+        self.get_file_path().exists()
+    }
+    pub fn render_new_note(&self) {
+        render_note(self.get_file_path(), self).unwrap();
+    }
+}
+
+fn get_id_from_path(path_str: &str) -> String {
+    let path = PathBuf::from(path_str);
+    path.file_stem()
+        .expect("get_id_from_path requires valid path")
+        .to_str()
+        .expect("get_id_from_path requires valid path")
+        .to_string()
+}
+
+fn fetch_page_title(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let body = reqwest::blocking::get(url)?.text()?;
+    let document = Html::parse_document(&body);
+    let selector = Selector::parse("title").unwrap();
+
+    let title = document
+        .select(&selector)
+        .next()
+        .ok_or("Title not found")?
+        .inner_html();
+    Ok(title)
+}
+
+fn get_field_string_from_document(
+    document: &Document,
+    schema: &Schema,
+    field_name: &str,
+) -> Option<String> {
+    // Extract the values from the document
+    let field = schema.get_field(field_name).expect("Cannot find field");
+    document
+        .get_first(field)
+        .and_then(|val| val.as_text())
+        .map(|str_val| str_val.to_string())
+}
+
+fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> Option<Facet> {
+    // Extract the values from the document
+    let field = schema.get_field(field_name).expect("Cannot find field");
+    document
+        .get_first(field)
+        .and_then(|val| val.as_facet())
+        .cloned()
+}
