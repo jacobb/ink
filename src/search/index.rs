@@ -28,7 +28,13 @@ fn add_document(
 }
 
 fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) {
-    let note = Note::from_markdown_file(markdown_path).expect("Error indexing file");
+    let note = match Note::from_markdown_file(markdown_path) {
+        Ok(note) => note,
+        Err(e) => {
+            println!("{}: Error parsing", e.msg);
+            return;
+        }
+    };
     if let Err(e) = add_document(&note, index_writer, schema) {
         println!("Failed to add note: {}", e);
     }

@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct NoteError {
-    msg: String,
+    pub msg: String,
 }
 
 impl fmt::Display for NoteError {
@@ -63,23 +63,24 @@ impl Note {
     pub fn from_markdown_file(path: &str) -> Result<Self, NoteError> {
         let raw_markdown = get_markdown_str(path);
         if let Some(front_matter) = frontmatter(&raw_markdown) {
-            if let (Some(title), tags, body) = (
+            if let (Some(title), tags, body, url) = (
                 front_matter.title,
                 front_matter.tags.unwrap_or(Vec::new()),
                 front_matter.content,
+                front_matter.url,
             ) {
                 let note = Note {
                     title,
                     body: Some(body),
                     id: get_id_from_path(path),
-                    url: Some("tmp.com".to_string()),
+                    url,
                     tags: tags.into_iter().collect(),
                 };
                 return Ok(note);
             }
         }
         Err(NoteError {
-            msg: "Oops".to_string(),
+            msg: format!("Oops {}", path),
         })
     }
     pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {

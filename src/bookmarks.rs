@@ -18,7 +18,7 @@ struct BookmarkFrontMatter {
 fn contains_url(entry: &DirEntry) -> bool {
     let path_str = match entry.path().to_str() {
         Some(s) => s,
-        None => return false, // Early return if path cannot be converted
+        None => return false,
     };
     let matter = Matter::<YAML>::new();
     let raw_markdown = get_markdown_str(path_str);
