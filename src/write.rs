@@ -1,4 +1,4 @@
-use crate::models::Note;
+use crate::note::Note;
 use crate::prompt::ParsedQuery;
 use std::env;
 use std::process::Command;

@@ -1,26 +1,10 @@
+use crate::note::Note;
 use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::{collector::TopDocs, query::*, schema::*, Index};
-//Okokok
 
-fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String, String)> {
-    // Get the field references from the schema
-    let title_field = schema
-        .get_field("title")
-        .expect("Title field does not exist.");
-    let path_field = schema
-        .get_field("path")
-        .expect("Path field does not exist.");
-
-    // Extract the values from the document
-    let title_value = document.get_first(title_field)?.as_text()?;
-    let path_value = document.get_first(path_field)?.as_text()?;
-
-    Some((title_value.to_string(), path_value.to_string()))
-}
-
-pub fn search_index(query: &str) -> tantivy::Result<()> {
+pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     // Open the index
     let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
@@ -73,11 +57,19 @@ pub fn search_index(query: &str) -> tantivy::Result<()> {
 
     // Search the index
     let top_docs = searcher.search(&combined_query, &TopDocs::with_limit(10))?;
+    let top_notes: Vec<Note> = top_docs
+        .into_iter()
+        .map(|(_score, doc_address)| {
+            let retrieved_doc = searcher.doc(doc_address).unwrap();
+            Note::from_tantivy_document(&retrieved_doc, &schema)
+        })
+        .collect();
 
-    for (_score, doc_address) in top_docs {
-        let retrieved_doc = searcher.doc(doc_address)?;
-        if let Some((title, path)) = extract_stored_fields(&retrieved_doc, &schema) {
-            println!("{}\t{}", title, path)
+    if is_json {
+        println!("{}", serde_json::to_string(&top_notes).unwrap());
+    } else {
+        for note in &top_notes {
+            println!("{}\t{}", note.title, note.get_file_path().to_str().unwrap());
         }
     }
 

@@ -2,10 +2,9 @@ use gray_matter::engine::YAML;
 use gray_matter::Matter;
 use serde::Deserialize;
 use std::fs;
-// use pulldown_cmark::{html, Options, Parser};
 
 #[derive(Deserialize, Debug)]
-pub struct TitleFrontMatter {
+pub struct NoteFrontMatter {
     pub title: Option<String>,
     pub tags: Option<Vec<String>>,
     pub url: Option<String>,
@@ -40,7 +39,7 @@ pub fn markdown(markdown_input: &str) -> Result<String, Box<dyn std::error::Erro
 pub fn frontmatter(markdown_input: &str) -> Option<ParsedMarkdown> {
     let matter = Matter::<YAML>::new();
     matter
-        .parse_with_struct::<TitleFrontMatter>(markdown_input)
+        .parse_with_struct::<NoteFrontMatter>(markdown_input)
         .map(|entity| ParsedMarkdown {
             title: entity.data.title,
             tags: entity.data.tags,

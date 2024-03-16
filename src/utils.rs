@@ -18,10 +18,9 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 }
 
 pub fn slugify(text: &str) -> String {
-    let slug = text.to_lowercase(); // Step 1: Lowercase all letters
+    let slug = text.to_lowercase();
     let mut clean_slug = String::new();
 
-    // Step 2: Iterate through characters, building a new string
     for c in slug.chars() {
         if c.is_alphanumeric() {
             clean_slug.push(c);
@@ -31,8 +30,5 @@ pub fn slugify(text: &str) -> String {
         }
     }
 
-    // Step 3: Remove leading or trailing hyphens
-    clean_slug = clean_slug.trim_matches('-').to_string();
-
-    clean_slug
+    clean_slug.trim_matches('-').to_string()
 }

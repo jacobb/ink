@@ -1,4 +1,4 @@
-use crate::models::Note;
+use crate::note::Note;
 use crate::settings::SETTINGS;
 use minijinja::value::Value;
 use minijinja::{context, Environment};

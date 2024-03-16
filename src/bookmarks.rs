@@ -1,11 +1,11 @@
-use crate::markdown::{frontmatter, get_markdown_str};
-use crate::models::Note;
+use crate::markdown::get_markdown_str;
+use crate::note::Note;
 use crate::settings::SETTINGS;
 use crate::walk::{has_extension, walk_files};
 
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::cell::RefCell;
 use walkdir::DirEntry;
 
@@ -15,19 +15,10 @@ struct BookmarkFrontMatter {
     url: String,
 }
 
-#[derive(Serialize)]
-struct Bookmark {
-    path: String,
-    title: String,
-    url: String,
-}
-
 fn contains_url(entry: &DirEntry) -> bool {
-    // Logic to determine if the file contains a URL in its frontmatter
-    // This is a placeholder; you'll need to implement the actual logic
     let path_str = match entry.path().to_str() {
         Some(s) => s,
-        None => return false, // Early return if path cannot be converted
+        None => return false,
     };
     let matter = Matter::<YAML>::new();
     let raw_markdown = get_markdown_str(path_str);
@@ -38,14 +29,13 @@ fn contains_url(entry: &DirEntry) -> bool {
 pub fn mark(is_json: bool) {
     let notes_dir = &SETTINGS.get_notes_path();
     if is_json {
-        // For JSON output, collect bookmarks and then serialize
         let bookmarks = RefCell::new(Vec::new());
         walk_files(
             notes_dir,
             true,
-            |note| has_extension(note) && contains_url(note),
+            |note_file| has_extension(note_file) && contains_url(note_file),
             |path_str| {
-                if let Some(bookmark) = render_bookmark(path_str) {
+                if let Ok(bookmark) = Note::from_markdown_file(path_str) {
                     bookmarks.borrow_mut().push(bookmark);
                 }
             },
@@ -53,34 +43,16 @@ pub fn mark(is_json: bool) {
         println!("{}", serde_json::to_string(&bookmarks).unwrap());
         return;
     }
-    // Default behavior for immediate output
     walk_files(
         notes_dir,
         true,
-        |note| has_extension(note) && contains_url(note),
+        |note_file| has_extension(note_file) && contains_url(note_file),
         |path_str| {
-            if let Some(bookmark) = render_bookmark(path_str) {
-                println!("{}\t{}", bookmark.title, bookmark.url);
+            if let Ok(note) = Note::from_markdown_file(path_str) {
+                println!("{}\t{}", note.title, note.url.unwrap());
             }
         },
     );
-}
-
-fn render_bookmark(path_str: &str) -> Option<Bookmark> {
-    let raw_markdown = get_markdown_str(path_str);
-    frontmatter(&raw_markdown).and_then(|fm| match (fm.title, fm.url) {
-        (Some(title), Some(url)) => Some(Bookmark {
-            path: path_str.to_string(),
-            title,
-            url,
-        }),
-        (None, Some(url)) => Some(Bookmark {
-            path: path_str.to_string(),
-            title: path_str.to_string(),
-            url,
-        }),
-        _ => None,
-    })
 }
 
 pub fn create_bookmark(url: &str, description: Option<String>) {
