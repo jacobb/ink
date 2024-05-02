@@ -68,7 +68,7 @@ fn get_schema() -> Schema {
             .set_index_option(IndexRecordOption::WithFreqsAndPositions),
     );
     schema_builder.add_text_field("typeahead_title", typeahead_options);
-    schema_builder.add_text_field("title", STRING | STORED);
+    schema_builder.add_text_field("title", TEXT | STORED);
     schema_builder.add_text_field("body", TEXT);
     schema_builder.add_text_field("path", STRING | STORED);
     schema_builder.add_facet_field("tag", INDEXED | STORED);

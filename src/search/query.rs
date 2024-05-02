@@ -21,25 +21,27 @@ pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     let lookahead_weight = 1.5;
 
     if !parsed_query.query.is_empty() {
-        let text_query = TermQuery::new(
-            Term::from_field_text(
-                schema.get_field("typeahead_title").unwrap(),
-                &parsed_query.query.to_lowercase(),
-            ),
+        let query_str = &parsed_query.query;
+
+        // typeahead
+        let typeahead_query = TermQuery::new(
+            Term::from_field_text(schema.get_field("typeahead_title").unwrap(), query_str),
             IndexRecordOption::Basic,
         );
-        let boosted_text_query = BoostQuery::new(Box::new(text_query), lookahead_weight);
-        queries.push((Occur::Should, Box::new(boosted_text_query)));
+        let boosted_typeahead_query = BoostQuery::new(Box::new(typeahead_query), lookahead_weight);
+        queries.push((Occur::Should, Box::new(boosted_typeahead_query)));
 
+        // title
         let title_query = TermQuery::new(
-            Term::from_field_text(schema.get_field("title").unwrap(), &parsed_query.query),
+            Term::from_field_text(schema.get_field("title").unwrap(), query_str),
             IndexRecordOption::Basic,
         );
         let boosted_title_query = BoostQuery::new(Box::new(title_query), title_weight);
         queries.push((Occur::Should, Box::new(boosted_title_query)));
 
+        // body
         let body_query = QueryParser::for_index(&index, vec![schema.get_field("body").unwrap()])
-            .parse_query(&parsed_query.query)?;
+            .parse_query(query_str)?;
         queries.push((Occur::Should, Box::new(body_query)));
     }
 

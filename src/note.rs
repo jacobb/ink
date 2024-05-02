@@ -114,6 +114,7 @@ impl Note {
     pub fn to_tantivy_document(&self, schema: &Schema) -> Document {
         let mut doc = Document::new();
         let body = self.body.as_deref().unwrap_or_default();
+        let title = &self.title.to_lowercase();
         doc.add_text(schema.get_field("title").unwrap(), &self.title);
         doc.add_text(
             schema.get_field("typeahead_title").unwrap(),
@@ -125,7 +126,9 @@ impl Note {
                 .to_str()
                 .expect("Path required to index document"),
         );
-        doc.add_text(schema.get_field("body").unwrap(), body);
+
+        let final_body = [body, " ", title].concat();
+        doc.add_text(schema.get_field("body").unwrap(), final_body);
         for tag in &self.tags {
             let facet = Facet::from(&format!("/tag/{}", tag));
             doc.add_facet(schema.get_field("tag").unwrap(), facet);
