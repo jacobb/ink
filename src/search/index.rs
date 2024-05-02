@@ -1,4 +1,4 @@
-use crate::markdown::{frontmatter, get_markdown_str};
+use crate::note::Note;
 use crate::settings::SETTINGS;
 use crate::utils::ensure_directory_exists;
 use crate::walk::{has_extension, walk_files};
@@ -6,67 +6,37 @@ use std::path::PathBuf;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::{schema::*, Index, IndexWriter, TantivyError};
 
-struct MarkdownDocument {
-    title: String,
-    body: String,
-    path: String,
-    tags: Vec<String>,
-}
-
-impl MarkdownDocument {
-    fn to_tantivy_document(&self, schema: &Schema) -> Document {
-        let mut doc = Document::new();
-        doc.add_text(schema.get_field("title").unwrap(), &self.title);
-        doc.add_text(
-            schema.get_field("typeahead_title").unwrap(),
-            &self.title.to_lowercase(),
-        );
-        doc.add_text(schema.get_field("path").unwrap(), &self.path);
-        doc.add_text(schema.get_field("body").unwrap(), &self.body);
-        for tag in &self.tags {
-            let facet = Facet::from(&format!("/tag/{}", tag));
-            doc.add_facet(schema.get_field("tag").unwrap(), facet);
-        }
-        doc
-    }
-}
-
 fn add_document(
-    doc: &MarkdownDocument,
+    note: &Note,
     index_writer: &IndexWriter,
     schema: &Schema,
 ) -> Result<(), TantivyError> {
     let path_field: Field = schema.get_field("path").unwrap();
+    let path = note.get_file_path();
+    let path_str = path
+        .to_str()
+        .expect("Valid path required to index document");
 
     // Create a term to identify the document to delete
-    let term = Term::from_field_text(path_field, &doc.path);
+    let term = Term::from_field_text(path_field, path_str);
 
     index_writer.delete_term(term);
     // Delete any existing document with the same path
 
-    let _ = index_writer.add_document(doc.to_tantivy_document(schema));
+    let _ = index_writer.add_document(note.to_tantivy_document(schema));
     Ok(())
 }
 
 fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) {
-    let raw_markdown = get_markdown_str(markdown_path);
-    if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let (Some(title), tags, body) = (
-            front_matter.title,
-            front_matter.tags.unwrap_or(Vec::new()),
-            front_matter.content,
-        ) {
-            let doc = MarkdownDocument {
-                title,
-                body,
-                tags,
-                path: markdown_path.to_string(),
-            };
-            // Handle the case where adding a document fails.
-            if let Err(e) = add_document(&doc, index_writer, schema) {
-                println!("Failed to add document: {}", e);
-            }
+    let note = match Note::from_markdown_file(markdown_path) {
+        Ok(note) => note,
+        Err(e) => {
+            println!("{}: Error parsing", e.msg);
+            return;
         }
+    };
+    if let Err(e) = add_document(&note, index_writer, schema) {
+        println!("Failed to add note: {}", e);
     }
 }
 
@@ -98,7 +68,7 @@ fn get_schema() -> Schema {
             .set_index_option(IndexRecordOption::WithFreqsAndPositions),
     );
     schema_builder.add_text_field("typeahead_title", typeahead_options);
-    schema_builder.add_text_field("title", STRING | STORED);
+    schema_builder.add_text_field("title", TEXT | STORED);
     schema_builder.add_text_field("body", TEXT);
     schema_builder.add_text_field("path", STRING | STORED);
     schema_builder.add_facet_field("tag", INDEXED | STORED);

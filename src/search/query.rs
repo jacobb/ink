@@ -1,26 +1,10 @@
+use crate::note::Note;
 use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::{collector::TopDocs, query::*, schema::*, Index};
-//Okokok
 
-fn extract_stored_fields(document: &Document, schema: &Schema) -> Option<(String, String)> {
-    // Get the field references from the schema
-    let title_field = schema
-        .get_field("title")
-        .expect("Title field does not exist.");
-    let path_field = schema
-        .get_field("path")
-        .expect("Path field does not exist.");
-
-    // Extract the values from the document
-    let title_value = document.get_first(title_field)?.as_text()?;
-    let path_value = document.get_first(path_field)?.as_text()?;
-
-    Some((title_value.to_string(), path_value.to_string()))
-}
-
-pub fn search_index(query: &str) -> tantivy::Result<()> {
+pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     // Open the index
     let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
@@ -37,25 +21,27 @@ pub fn search_index(query: &str) -> tantivy::Result<()> {
     let lookahead_weight = 1.5;
 
     if !parsed_query.query.is_empty() {
-        let text_query = TermQuery::new(
-            Term::from_field_text(
-                schema.get_field("typeahead_title").unwrap(),
-                &parsed_query.query.to_lowercase(),
-            ),
+        let query_str = &parsed_query.query;
+
+        // typeahead
+        let typeahead_query = TermQuery::new(
+            Term::from_field_text(schema.get_field("typeahead_title").unwrap(), query_str),
             IndexRecordOption::Basic,
         );
-        let boosted_text_query = BoostQuery::new(Box::new(text_query), lookahead_weight);
-        queries.push((Occur::Should, Box::new(boosted_text_query)));
+        let boosted_typeahead_query = BoostQuery::new(Box::new(typeahead_query), lookahead_weight);
+        queries.push((Occur::Should, Box::new(boosted_typeahead_query)));
 
+        // title
         let title_query = TermQuery::new(
-            Term::from_field_text(schema.get_field("title").unwrap(), &parsed_query.query),
+            Term::from_field_text(schema.get_field("title").unwrap(), query_str),
             IndexRecordOption::Basic,
         );
         let boosted_title_query = BoostQuery::new(Box::new(title_query), title_weight);
         queries.push((Occur::Should, Box::new(boosted_title_query)));
 
+        // body
         let body_query = QueryParser::for_index(&index, vec![schema.get_field("body").unwrap()])
-            .parse_query(&parsed_query.query)?;
+            .parse_query(query_str)?;
         queries.push((Occur::Should, Box::new(body_query)));
     }
 
@@ -73,11 +59,19 @@ pub fn search_index(query: &str) -> tantivy::Result<()> {
 
     // Search the index
     let top_docs = searcher.search(&combined_query, &TopDocs::with_limit(10))?;
+    let top_notes: Vec<Note> = top_docs
+        .into_iter()
+        .map(|(_score, doc_address)| {
+            let retrieved_doc = searcher.doc(doc_address).unwrap();
+            Note::from_tantivy_document(&retrieved_doc, &schema)
+        })
+        .collect();
 
-    for (_score, doc_address) in top_docs {
-        let retrieved_doc = searcher.doc(doc_address)?;
-        if let Some((title, path)) = extract_stored_fields(&retrieved_doc, &schema) {
-            println!("{}\t{}", title, path)
+    if is_json {
+        println!("{}", serde_json::to_string(&top_notes).unwrap());
+    } else {
+        for note in &top_notes {
+            println!("{}\t{}", note.title, note.get_file_path().to_str().unwrap());
         }
     }
 

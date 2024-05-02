@@ -1,7 +1,7 @@
 mod bookmarks;
 mod list;
 mod markdown;
-mod models;
+mod note;
 mod prompt;
 mod search;
 mod settings;
@@ -50,7 +50,12 @@ enum Commands {
     /// Update/Create the search index
     Index {},
     /// Search the search index
-    Search { query: String },
+    Search {
+        // Return output as json
+        #[arg(long)]
+        json: bool,
+        query: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -99,7 +104,7 @@ fn main() {
             Ok(_) => (),
             Err(_) => println!("An error occured indexing"),
         },
-        Commands::Search { query } => match search_index(query) {
+        Commands::Search { json, query } => match search_index(query, *json) {
             Ok(_) => (),
             Err(e) => println!("Could not complete a search {}", e),
         },
