@@ -67,9 +67,15 @@ fn get_schema() -> Schema {
             .set_tokenizer("ngram")
             .set_index_option(IndexRecordOption::WithFreqsAndPositions),
     );
+    let text_options = TextOptions::default().set_indexing_options(
+        TextFieldIndexing::default()
+            .set_tokenizer("en_stem")
+            .set_index_option(IndexRecordOption::Basic),
+    );
+    let stored_text_options = text_options.clone().set_stored();
     schema_builder.add_text_field("typeahead_title", typeahead_options);
-    schema_builder.add_text_field("title", TEXT | STORED);
-    schema_builder.add_text_field("body", TEXT);
+    schema_builder.add_text_field("title", stored_text_options);
+    schema_builder.add_text_field("body", text_options);
     schema_builder.add_text_field("path", STRING | STORED);
     schema_builder.add_facet_field("tag", INDEXED | STORED);
     // Build the schema
