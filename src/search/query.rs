@@ -21,7 +21,7 @@ pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     let lookahead_weight = 1.5;
 
     if !parsed_query.query.is_empty() {
-        let query_str = &parsed_query.query;
+        let query_str = &parsed_query.query.to_lowercase();
 
         // typeahead
         let typeahead_query = TermQuery::new(
