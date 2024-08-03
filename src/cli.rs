@@ -3,12 +3,22 @@ use crate::list::list;
 use crate::search::{create_index_and_add_documents, search_index};
 use crate::settings::SETTINGS;
 use crate::write::{create_note, prompt as process_prompt};
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum SortChoice {
+    Title,
+    #[clap(name = "modified")]
+    AscLastModified,
+    #[clap(name = "-modified")]
+    DescLastModified,
+    Created,
 }
 
 #[derive(Subcommand)]
@@ -43,6 +53,12 @@ enum Commands {
         #[arg(long)]
         json: bool,
         query: String,
+        /// Sort results
+        #[arg(long, short, value_enum)]
+        sort: Option<SortChoice>,
+        /// How many results to return
+        #[arg(long, short, default_value = "10")]
+        limit: usize,
     },
 }
 
@@ -92,7 +108,12 @@ pub fn run_cli() {
             Ok(_) => (),
             Err(_) => println!("An error occured indexing"),
         },
-        Commands::Search { json, query } => match search_index(query, *json) {
+        Commands::Search {
+            json,
+            query,
+            sort,
+            limit,
+        } => match search_index(query, *json, *sort, *limit) {
             Ok(_) => (),
             Err(e) => println!("Could not complete a search {}", e),
         },

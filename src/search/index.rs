@@ -73,7 +73,14 @@ fn get_schema() -> Schema {
             .set_index_option(IndexRecordOption::Basic),
     );
     let stored_text_options = text_options.clone().set_stored();
+    schema_builder.add_date_field("sort_created", FAST);
+    schema_builder.add_date_field("sort_modified", FAST);
+    schema_builder.add_date_field("created", INDEXED | STORED);
+    schema_builder.add_date_field("modified", INDEXED | STORED);
+
     schema_builder.add_text_field("typeahead_title", typeahead_options);
+    schema_builder.add_text_field("sort_title", FAST);
+
     schema_builder.add_text_field("title", stored_text_options);
     schema_builder.add_text_field("body", text_options);
     schema_builder.add_text_field("path", STRING | STORED);

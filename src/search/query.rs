@@ -1,10 +1,17 @@
+use crate::cli::SortChoice;
 use crate::note::Note;
 use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
-use tantivy::{collector::TopDocs, query::*, schema::*, Index};
+use tantivy::DateTime as tantivy_DateTime;
+use tantivy::{collector::TopDocs, index::Order, query::*, schema::*, DocAddress, Index, Searcher};
 
-pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
+pub fn search_index(
+    query: &str,
+    is_json: bool,
+    sort: Option<SortChoice>,
+    limit: usize,
+) -> tantivy::Result<()> {
     // Open the index
     let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
@@ -16,7 +23,6 @@ pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     let schema = index.schema();
     let mut queries: Vec<(Occur, Box<dyn Query>)> = Vec::new();
 
-    // Create a collector that uses a weighted score
     let title_weight = 2.0;
     let lookahead_weight = 1.5;
 
@@ -55,18 +61,37 @@ pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     let combined_query = BooleanQuery::new(queries);
 
     // Create a searcher
+    //
     let searcher = index.reader()?.searcher();
+    let top_docs = match sort {
+        Some(SortChoice::DescLastModified) => get_datetime_top_docs(
+            &searcher,
+            &combined_query,
+            "sort_modified",
+            Order::Desc,
+            limit,
+        ),
+        Some(SortChoice::AscLastModified) => get_datetime_top_docs(
+            &searcher,
+            &combined_query,
+            "sort_modified",
+            Order::Asc,
+            limit,
+        ),
+        _ => searcher
+            .search(&combined_query, &TopDocs::with_limit(limit))?
+            .into_iter()
+            .map(|(_score, doc_address)| doc_address)
+            .collect(),
+    };
 
-    // Search the index
-    let top_docs = searcher.search(&combined_query, &TopDocs::with_limit(10))?;
     let top_notes: Vec<Note> = top_docs
         .into_iter()
-        .map(|(_score, doc_address)| {
-            let retrieved_doc = searcher.doc(doc_address).unwrap();
-            Note::from_tantivy_document(&retrieved_doc, &schema)
+        .map(|doc_address| {
+            let doc: TantivyDocument = searcher.doc(doc_address).unwrap();
+            Note::from_tantivy_document(&doc, &schema)
         })
         .collect();
-
     if is_json {
         println!("{}", serde_json::to_string(&top_notes).unwrap());
     } else {
@@ -76,4 +101,23 @@ pub fn search_index(query: &str, is_json: bool) -> tantivy::Result<()> {
     }
 
     Ok(())
+}
+
+fn get_datetime_top_docs(
+    searcher: &Searcher,
+    combined_query: &BooleanQuery,
+    field_name: &str,
+    order: Order,
+    limit: usize,
+) -> Vec<DocAddress> {
+    let doc_search: Vec<(tantivy_DateTime, DocAddress)> = searcher
+        .search(
+            combined_query,
+            &TopDocs::with_limit(limit).order_by_fast_field(field_name, order),
+        )
+        .unwrap();
+    doc_search
+        .into_iter()
+        .map(|(_score, doc_address)| doc_address)
+        .collect()
 }
