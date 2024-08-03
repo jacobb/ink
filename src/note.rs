@@ -3,12 +3,16 @@ use crate::prompt::ParsedQuery;
 use crate::settings::SETTINGS;
 use crate::template::render_note;
 use crate::utils::slugify;
+use chrono::{DateTime, Utc};
 use scraper::{Html, Selector};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::fmt;
+use std::fs::File;
 use std::path::PathBuf;
+use tantivy::schema::document::Value;
+use tantivy::DateTime as tantivy_DateTime;
 
 #[derive(Debug)]
 pub struct NoteError {
@@ -21,7 +25,7 @@ impl fmt::Display for NoteError {
     }
 }
 
-use tantivy::schema::{Document, Facet, Schema};
+use tantivy::schema::{Facet, Schema, TantivyDocument as Document};
 
 #[derive(Debug, Deserialize)]
 pub struct Note {
@@ -31,6 +35,9 @@ pub struct Note {
     pub body: Option<String>,
     pub tags: HashSet<String>,
     pub url: Option<String>,
+
+    pub created: Option<DateTime<Utc>>,
+    pub modified: Option<DateTime<Utc>>,
 }
 
 impl Serialize for Note {
@@ -45,6 +52,8 @@ impl Serialize for Note {
         s.serialize_field("tags", &self.tags)?;
         s.serialize_field("url", &self.url)?;
         s.serialize_field("path", &self.get_file_path().to_str())?;
+        s.serialize_field("created", &self.created)?;
+        s.serialize_field("modified", &self.modified)?;
         s.end()
     }
 }
@@ -58,10 +67,19 @@ impl Note {
             title,
             tags: HashSet::new(),
             url: None,
+            created: None,
+            modified: None,
         }
     }
     pub fn from_markdown_file(path: &str) -> Result<Self, NoteError> {
         let raw_markdown = get_markdown_str(path);
+        let metadata = File::open(path).and_then(|f| f.metadata()).ok();
+        let (created, modified) = match metadata {
+            Some(meta) => (meta.created().ok(), meta.modified().ok()),
+            None => (None, None),
+        };
+
+        // TODO: this seems like it could use refactoring
         if let Some(front_matter) = frontmatter(&raw_markdown) {
             if let (Some(title), tags, body, url) = (
                 front_matter.title,
@@ -75,7 +93,10 @@ impl Note {
                     id: get_id_from_path(path),
                     url,
                     tags: tags.into_iter().collect(),
+                    created: created.map(DateTime::from),
+                    modified: modified.map(DateTime::from),
                 };
+
                 return Ok(note);
             }
         }
@@ -90,6 +111,8 @@ impl Note {
             title: parsed_query.query.clone(),
             tags: parsed_query.tags.into_iter().collect(),
             url: parsed_query.url,
+            created: None,
+            modified: None,
         }
     }
     pub fn from_tantivy_document(document: &Document, schema: &Schema) -> Self {
@@ -108,6 +131,8 @@ impl Note {
                 .expect("Title is required"),
             url: None,
             tags,
+            created: get_field_date_from_document(document, schema, "created"),
+            modified: get_field_date_from_document(document, schema, "modified"),
         }
     }
 
@@ -118,7 +143,7 @@ impl Note {
         doc.add_text(schema.get_field("title").unwrap(), &self.title);
         doc.add_text(
             schema.get_field("typeahead_title").unwrap(),
-            &self.title.to_lowercase(),
+            self.title.to_lowercase(),
         );
         doc.add_text(
             schema.get_field("path").unwrap(),
@@ -126,6 +151,27 @@ impl Note {
                 .to_str()
                 .expect("Path required to index document"),
         );
+
+        if let Some(created) = self.created {
+            doc.add_date(
+                schema.get_field("created").unwrap(),
+                tantivy_DateTime::from_timestamp_secs(created.timestamp()),
+            );
+            doc.add_date(
+                schema.get_field("sort_created").unwrap(),
+                tantivy_DateTime::from_timestamp_secs(created.timestamp()),
+            );
+        }
+        if let Some(modified) = self.modified {
+            doc.add_date(
+                schema.get_field("modified").unwrap(),
+                tantivy_DateTime::from_timestamp_secs(modified.timestamp()),
+            );
+            doc.add_date(
+                schema.get_field("sort_modified").unwrap(),
+                tantivy_DateTime::from_timestamp_secs(modified.timestamp()),
+            );
+        }
 
         let final_body = [body, " ", title].concat();
         doc.add_text(schema.get_field("body").unwrap(), final_body);
@@ -151,6 +197,8 @@ impl Note {
             title,
             tags: HashSet::new(),
             url: Some(url.to_string()),
+            created: None,
+            modified: None,
         };
         note.tags.insert("bookmark".to_string());
         note
@@ -200,8 +248,23 @@ fn get_field_string_from_document(
     let field = schema.get_field(field_name).expect("Cannot find field");
     document
         .get_first(field)
-        .and_then(|val| val.as_text())
+        .and_then(|val| val.as_str())
         .map(|str_val| str_val.to_string())
+}
+
+fn get_field_date_from_document(
+    document: &Document,
+    schema: &Schema,
+    field_name: &str,
+) -> Option<DateTime<Utc>> {
+    let field = schema.get_field(field_name).expect("Cannot find field");
+    document
+        .get_first(field)
+        .and_then(|val| val.as_datetime())
+        .map(|date| {
+            let utc_seconds = date.into_timestamp_secs();
+            DateTime::from_timestamp(utc_seconds, 0).unwrap()
+        })
 }
 
 fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> Option<Facet> {

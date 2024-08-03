@@ -17,7 +17,7 @@ pub fn create_note(title: &str, slug: Option<String>) {
     if !note.file_exists() {
         note.render_new_note()
     };
-    cmd.arg(&note.get_file_path())
+    cmd.arg(note.get_file_path())
         .status()
         .expect("Couldn't launch editor");
 }
