@@ -36,7 +36,7 @@ pub fn markdown(markdown_input: &str) -> Result<String, Box<dyn std::error::Erro
     Ok(html_output)
 }*/
 
-pub fn frontmatter(markdown_input: &str) -> Option<ParsedMarkdown> {
+pub fn frontmatter(markdown_input: &str) -> ParsedMarkdown {
     let matter = Matter::<YAML>::new();
     matter
         .parse_with_struct::<NoteFrontMatter>(markdown_input)
@@ -45,5 +45,11 @@ pub fn frontmatter(markdown_input: &str) -> Option<ParsedMarkdown> {
             tags: entity.data.tags,
             url: entity.data.url,
             content: entity.content,
+        })
+        .unwrap_or_else(|| ParsedMarkdown {
+            title: None,
+            tags: None,
+            url: None,
+            content: markdown_input.to_string(),
         })
 }

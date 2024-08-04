@@ -13,10 +13,9 @@ fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
         None => return false,
     };
     let raw_markdown = get_markdown_str(path_str);
-    if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let Some(tags) = front_matter.tags {
-            return tags.iter().any(|tag| target_tags.contains(tag));
-        }
+    let front_matter = frontmatter(&raw_markdown);
+    if let Some(tags) = front_matter.tags {
+        return tags.iter().any(|tag| target_tags.contains(tag));
     }
     false
 }
@@ -32,12 +31,9 @@ pub fn list(recurse_into: bool, tags: &[String]) {
 
 fn render_file(path_str: &str) {
     let raw_markdown = get_markdown_str(path_str);
-    if let Some(front_matter) = frontmatter(&raw_markdown) {
-        if let Some(title) = front_matter.title {
-            println!("{}\t{}", title, path_str);
-        } else {
-            println!("{}\t{}", path_str, path_str);
-        }
+    let front_matter = frontmatter(&raw_markdown);
+    if let Some(title) = front_matter.title {
+        println!("{}\t{}", title, path_str);
     } else {
         println!("{}\t{}", path_str, path_str);
     }

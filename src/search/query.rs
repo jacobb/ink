@@ -1,6 +1,7 @@
 use crate::cli::SortChoice;
 use crate::note::Note;
 use crate::prompt::ParsedQuery;
+use crate::search::index::{index_needs_update, spawn_index_update};
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::DateTime as tantivy_DateTime;
@@ -12,6 +13,9 @@ pub fn search_index(
     sort: Option<SortChoice>,
     limit: usize,
 ) -> tantivy::Result<()> {
+    if index_needs_update()? {
+        spawn_index_update();
+    }
     // Open the index
     let index_path = &SETTINGS.get_cache_path();
     let index = Index::open_in_dir(index_path)?;
