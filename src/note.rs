@@ -80,29 +80,24 @@ impl Note {
         };
 
         // TODO: this seems like it could use refactoring
-        if let Some(front_matter) = frontmatter(&raw_markdown) {
-            if let (Some(title), tags, body, url) = (
-                front_matter.title,
-                front_matter.tags.unwrap_or(Vec::new()),
-                front_matter.content,
-                front_matter.url,
-            ) {
-                let note = Note {
-                    title,
-                    body: Some(body),
-                    id: get_id_from_path(path),
-                    url,
-                    tags: tags.into_iter().collect(),
-                    created: created.map(DateTime::from),
-                    modified: modified.map(DateTime::from),
-                };
-
-                return Ok(note);
-            }
-        }
-        Err(NoteError {
-            msg: format!("Oops {}", path),
-        })
+        let front_matter = frontmatter(&raw_markdown);
+        let (title, tags, body, url) = (
+            front_matter.title,
+            front_matter.tags.unwrap_or_default(),
+            front_matter.content,
+            front_matter.url,
+        );
+        let id = get_id_from_path(path);
+        let note = Note {
+            title: title.unwrap_or(id.clone()),
+            body: Some(body),
+            id,
+            url,
+            tags: tags.into_iter().collect(),
+            created: created.map(DateTime::from),
+            modified: modified.map(DateTime::from),
+        };
+        Ok(note)
     }
     pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
         Note {
