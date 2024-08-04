@@ -79,7 +79,6 @@ impl Note {
             None => (None, None),
         };
 
-        // TODO: this seems like it could use refactoring
         let front_matter = frontmatter(&raw_markdown);
         let (title, tags, body, url) = (
             front_matter.title,
