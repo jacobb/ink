@@ -2,7 +2,7 @@ use crate::bookmarks::{create_bookmark, mark};
 use crate::list::list;
 use crate::search::{create_index_and_add_documents, search_index};
 use crate::settings::SETTINGS;
-use crate::write::{create_note, prompt as process_prompt};
+use crate::write::{prompt as process_prompt, prompt_and_edit};
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
@@ -38,10 +38,10 @@ enum Commands {
         action: BookmarkCommands,
     },
     /// Create + Immediatley edit a new note
-    Create { title: String, id: Option<String> },
+    Create { query: String },
     /// Create a new note, but do not open an edit session
     Prompt {
-        prompt: String,
+        query: String,
         #[arg(long = "path-only")]
         path_only: bool,
     },
@@ -93,11 +93,11 @@ pub fn run_cli() {
                 create_bookmark(url, description.clone());
             }
         },
-        Commands::Create { title, id } => {
-            create_note(title, id.clone());
+        Commands::Create { query } => {
+            prompt_and_edit(query);
         }
-        Commands::Prompt { path_only, prompt } => {
-            let note = process_prompt(prompt);
+        Commands::Prompt { path_only, query } => {
+            let note = process_prompt(query);
             if *path_only {
                 println!("{}", note.get_file_path().to_str().unwrap());
             } else {

@@ -6,20 +6,8 @@ use std::process::Command;
 fn get_editor() -> String {
     match env::var("EDITOR") {
         Ok(value) => value,
-        Err(_) => String::from("nvim"),
+        Err(_) => String::from("vim"),
     }
-}
-
-pub fn create_note(title: &str, slug: Option<String>) {
-    let note = Note::new(title.to_string(), slug);
-
-    let mut cmd = Command::new(get_editor());
-    if !note.file_exists() {
-        note.render_new_note()
-    };
-    cmd.arg(note.get_file_path())
-        .status()
-        .expect("Couldn't launch editor");
 }
 
 pub fn prompt(title: &str) -> Note {
@@ -31,4 +19,12 @@ pub fn prompt(title: &str) -> Note {
         note.render_new_note()
     };
     note
+}
+
+pub fn prompt_and_edit(title: &str) {
+    let note = prompt(title);
+    let mut cmd = Command::new(get_editor());
+    cmd.arg(note.get_file_path())
+        .status()
+        .expect("Couldn't launch editor");
 }

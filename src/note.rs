@@ -30,6 +30,7 @@ use tantivy::schema::{Facet, Schema, TantivyDocument as Document};
 #[derive(Debug, Deserialize)]
 pub struct Note {
     pub id: String,
+    path: Option<String>,
     pub title: String,
 
     pub body: Option<String>,
@@ -66,6 +67,7 @@ impl Note {
             id,
             title,
             tags: HashSet::new(),
+            path: None,
             url: None,
             created: None,
             modified: None,
@@ -92,6 +94,7 @@ impl Note {
             body: Some(body),
             id,
             url,
+            path: Some(path.to_string()),
             tags: tags.into_iter().collect(),
             created: created.map(DateTime::from),
             modified: modified.map(DateTime::from),
@@ -99,9 +102,12 @@ impl Note {
         Ok(note)
     }
     pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
+        let id = parsed_query.get_slug();
+        let path = format!("{}.md", id);
         Note {
             body: None,
-            id: parsed_query.get_slug(),
+            id,
+            path: Some(path),
             title: parsed_query.query.clone(),
             tags: parsed_query.tags.into_iter().collect(),
             url: parsed_query.url,
@@ -121,6 +127,7 @@ impl Note {
         Note {
             body: get_field_string_from_document(document, schema, "body"),
             id: id_str,
+            path: Some(path),
             title: get_field_string_from_document(document, schema, "title")
                 .expect("Title is required"),
             url: None,
@@ -185,9 +192,11 @@ impl Note {
             Err(_) => url.to_string(),
         };
         let id = maybe_id.unwrap_or(slugify(&title));
+        let path = format!("{}.md", id);
         let mut note = Note {
             body: maybe_description,
             id,
+            path: Some(path),
             title,
             tags: HashSet::new(),
             url: Some(url.to_string()),
@@ -201,7 +210,11 @@ impl Note {
         self.tags.insert(tag);
     }
     pub fn get_file_path(&self) -> PathBuf {
-        SETTINGS.get_notes_path().join(format!("{}.md", self.id))
+        let path = self
+            .path
+            .clone()
+            .expect("Can only call get_file_path on Notes with a valid path");
+        SETTINGS.get_notes_path().join(path)
     }
     pub fn file_exists(&self) -> bool {
         self.get_file_path().exists()
