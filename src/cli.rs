@@ -71,7 +71,7 @@ enum BookmarkCommands {
         json: bool,
     },
     /// Create a new bookmark
-    New {
+    Create {
         url: String,
         description: Option<String>,
     },
@@ -89,7 +89,7 @@ pub fn run_cli() {
             BookmarkCommands::List { json } => {
                 mark(*json);
             }
-            BookmarkCommands::New { url, description } => {
+            BookmarkCommands::Create { url, description } => {
                 create_bookmark(url, description.clone());
             }
         },
