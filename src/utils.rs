@@ -32,3 +32,43 @@ pub fn slugify(text: &str) -> String {
 
     clean_slug.trim_matches('-').to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slugify_basic_text() {
+        assert_eq!(slugify("Hello World"), "hello-world");
+    }
+
+    #[test]
+    fn test_slugify_with_special_characters() {
+        assert_eq!(slugify("Hello, World! & More"), "hello-world-more");
+    }
+
+    #[test]
+    fn test_slugify_with_numbers() {
+        assert_eq!(slugify("Test 123 Note"), "test-123-note");
+    }
+
+    #[test]
+    fn test_slugify_multiple_spaces_and_punctuation() {
+        assert_eq!(slugify("Multiple   spaces!!!"), "multiple-spaces");
+    }
+
+    #[test]
+    fn test_slugify_leading_trailing_special_chars() {
+        assert_eq!(slugify("---Hello World---"), "hello-world");
+    }
+
+    #[test]
+    fn test_slugify_empty_string() {
+        assert_eq!(slugify(""), "");
+    }
+
+    #[test]
+    fn test_slugify_only_special_chars() {
+        assert_eq!(slugify("!@#$%^&*()"), "");
+    }
+}
