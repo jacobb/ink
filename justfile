@@ -1,6 +1,9 @@
 build:
     cargo build
 
+test:
+    cargo test
+
 fmt:
     pre-commit run --all-files
 
@@ -11,7 +14,7 @@ release:
 install target="debug":
     cp ./target/{{target}}/ink ~/bin/ink
 
-test cmd="view":
+debug cmd="view":
     ./target/debug/ink {{cmd}}
 
 run *args:
