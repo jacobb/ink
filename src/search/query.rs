@@ -1,7 +1,7 @@
 use crate::cli::SortChoice;
 use crate::note::Note;
 use crate::prompt::ParsedQuery;
-use crate::search::index::{index_needs_update, spawn_index_update};
+use crate::search::index_updater::{index_needs_update, spawn_index_update};
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::DateTime as tantivy_DateTime;
