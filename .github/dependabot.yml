@@ -9,9 +9,9 @@ updates:
       time: "06:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "jacob"
+      - "jacobb"
     assignees:
-      - "jacob"
+      - "jacobb"
     commit-message:
       prefix: "cargo"
       include: "scope"
@@ -30,9 +30,9 @@ updates:
       time: "06:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "jacob"
+      - "jacobb"
     assignees:
-      - "jacob"
+      - "jacobb"
     commit-message:
       prefix: "github-actions"
       include: "scope"
