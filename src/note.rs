@@ -50,6 +50,7 @@ impl Serialize for Note {
         s.serialize_field("id", &self.id)?;
         s.serialize_field("title", &self.title)?;
         s.serialize_field("body", &self.body)?;
+        s.serialize_field("hidden", &self.is_hidden())?;
         s.serialize_field("tags", &self.tags)?;
         s.serialize_field("url", &self.url)?;
         s.serialize_field("path", &self.get_file_path().to_str())?;
@@ -222,6 +223,9 @@ impl Note {
     pub fn render_new_note(&self) {
         render_note(self.get_file_path(), self).unwrap();
     }
+    pub fn is_hidden(&self) -> bool {
+        self.tags.contains("hidden")
+    }
 }
 
 fn get_id_from_path(path_str: &str) -> String {
@@ -281,4 +285,208 @@ fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> O
         .get_first(field)
         .and_then(|val| val.as_facet())
         .cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prompt::ParsedQuery;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_note_new_with_title_only() {
+        let note = Note::new("My Test Note".to_string(), None);
+
+        assert_eq!(note.title, "My Test Note");
+        assert_eq!(note.id, "my-test-note");
+        assert_eq!(note.body, None);
+        assert!(note.tags.is_empty());
+        assert_eq!(note.path, None);
+        assert_eq!(note.url, None);
+        assert_eq!(note.created, None);
+        assert_eq!(note.modified, None);
+    }
+
+    #[test]
+    fn test_note_new_with_custom_id() {
+        let note = Note::new("Another Note".to_string(), Some("custom-id".to_string()));
+
+        assert_eq!(note.title, "Another Note");
+        assert_eq!(note.id, "custom-id");
+        assert_eq!(note.body, None);
+        assert!(note.tags.is_empty());
+        assert_eq!(note.path, None);
+        assert_eq!(note.url, None);
+        assert_eq!(note.created, None);
+        assert_eq!(note.modified, None);
+    }
+
+    #[test]
+    fn test_note_new_with_special_characters_in_title() {
+        let note = Note::new("Special & Characters! Note".to_string(), None);
+
+        assert_eq!(note.title, "Special & Characters! Note");
+        assert_eq!(note.id, "special-characters-note");
+    }
+
+    #[test]
+    fn test_note_from_parsed_prompt_basic() {
+        let parsed_query = ParsedQuery::from_query("Test note content");
+        let note = Note::from_parsed_prompt(parsed_query);
+
+        assert_eq!(note.title, "Test note content");
+        assert_eq!(note.id, "test-note-content");
+        assert_eq!(note.path, Some("test-note-content.md".to_string()));
+        assert_eq!(note.body, None);
+        assert!(note.tags.is_empty());
+        assert_eq!(note.url, None);
+        assert_eq!(note.created, None);
+        assert_eq!(note.modified, None);
+    }
+
+    #[test]
+    fn test_note_from_parsed_prompt_with_tags() {
+        let parsed_query = ParsedQuery::from_query("Note with tags #rust #programming");
+        let note = Note::from_parsed_prompt(parsed_query);
+
+        assert_eq!(note.title, "Note with tags");
+        assert_eq!(note.id, "note-with-tags");
+        assert_eq!(note.path, Some("note-with-tags.md".to_string()));
+
+        let expected_tags: HashSet<String> = ["rust", "programming"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(note.tags, expected_tags);
+    }
+
+    #[test]
+    fn test_note_from_parsed_prompt_with_url() {
+        let parsed_query = ParsedQuery::from_query("Bookmark note https://example.com");
+        let note = Note::from_parsed_prompt(parsed_query);
+
+        assert_eq!(note.title, "Bookmark note");
+        assert_eq!(note.id, "bookmark-note");
+        assert_eq!(note.url, Some("https://example.com".to_string()));
+    }
+
+    #[test]
+    fn test_note_from_parsed_prompt_with_tags_and_url() {
+        let parsed_query =
+            ParsedQuery::from_query("Complex note #web #bookmark https://example.com");
+        let note = Note::from_parsed_prompt(parsed_query);
+
+        assert_eq!(note.title, "Complex note");
+        assert_eq!(note.id, "complex-note");
+        assert_eq!(note.url, Some("https://example.com".to_string()));
+
+        let expected_tags: HashSet<String> =
+            ["web", "bookmark"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(note.tags, expected_tags);
+    }
+
+    #[test]
+    fn test_note_new_bookmark_basic() {
+        let note = Note::new_bookmark("https://example.com", None, None);
+
+        assert_eq!(note.url, Some("https://example.com".to_string()));
+        assert!(note.tags.contains("bookmark"));
+        assert_eq!(note.path, Some(format!("{}.md", note.id)));
+        assert_eq!(note.body, None);
+        assert_eq!(note.created, None);
+        assert_eq!(note.modified, None);
+    }
+
+    #[test]
+    fn test_note_new_bookmark_with_custom_id() {
+        let note = Note::new_bookmark("https://example.com", Some("my-bookmark".to_string()), None);
+
+        assert_eq!(note.id, "my-bookmark");
+        assert_eq!(note.path, Some("my-bookmark.md".to_string()));
+        assert_eq!(note.url, Some("https://example.com".to_string()));
+        assert!(note.tags.contains("bookmark"));
+    }
+
+    #[test]
+    fn test_note_new_bookmark_with_description() {
+        let description = Some("This is a great website".to_string());
+        let note = Note::new_bookmark("https://example.com", None, description.clone());
+
+        assert_eq!(note.body, description);
+        assert_eq!(note.url, Some("https://example.com".to_string()));
+        assert!(note.tags.contains("bookmark"));
+    }
+
+    #[test]
+    fn test_note_add_tag() {
+        let mut note = Note::new("Test Note".to_string(), None);
+        assert!(note.tags.is_empty());
+
+        note.add_tag("rust".to_string());
+        assert!(note.tags.contains("rust"));
+        assert_eq!(note.tags.len(), 1);
+
+        note.add_tag("programming".to_string());
+        assert!(note.tags.contains("rust"));
+        assert!(note.tags.contains("programming"));
+        assert_eq!(note.tags.len(), 2);
+
+        // Adding the same tag again should not duplicate it
+        note.add_tag("rust".to_string());
+        assert_eq!(note.tags.len(), 2);
+    }
+
+    #[test]
+    fn test_get_id_from_path() {
+        assert_eq!(get_id_from_path("test-note.md"), "test-note");
+        assert_eq!(get_id_from_path("/path/to/my-note.md"), "my-note");
+        assert_eq!(
+            get_id_from_path("./notes/complex-note-name.md"),
+            "complex-note-name"
+        );
+        assert_eq!(
+            get_id_from_path("note-without-extension"),
+            "note-without-extension"
+        );
+    }
+
+    #[test]
+    fn test_note_serialize_fields() {
+        let mut note = Note::new("Test Note".to_string(), Some("test-id".to_string()));
+        note.add_tag("test".to_string());
+        note.url = Some("https://example.com".to_string());
+        note.path = Some("test-id.md".to_string());
+
+        let serialized = serde_json::to_value(&note).unwrap();
+
+        assert_eq!(serialized["id"], "test-id");
+        assert_eq!(serialized["title"], "Test Note");
+        assert_eq!(serialized["hidden"], false);
+        assert_eq!(serialized["url"], "https://example.com");
+
+        let tags_array = serialized["tags"].as_array().unwrap();
+        assert_eq!(tags_array.len(), 1);
+        assert!(tags_array.contains(&serde_json::Value::String("test".to_string())));
+    }
+
+    #[test]
+    fn test_note_is_hidden() {
+        let mut note = Note::new("Test Note".to_string(), None);
+
+        // Note should not be hidden initially
+        assert!(!note.is_hidden());
+
+        // Add some regular tags
+        note.add_tag("rust".to_string());
+        note.add_tag("programming".to_string());
+        assert!(!note.is_hidden());
+
+        // Add hidden tag
+        note.add_tag("hidden".to_string());
+        assert!(note.is_hidden());
+
+        // Should still be hidden with other tags present
+        note.add_tag("more-tags".to_string());
+        assert!(note.is_hidden());
+    }
 }
