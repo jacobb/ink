@@ -13,7 +13,6 @@ pub struct Settings {
     pub recurse: bool,
     pub cache_dir: String,
     pub notes_dir: String,
-    pub archive_dir: String,
     pub ignore: Vec<String>,
     pub note_template: Option<String>,
 }
@@ -50,9 +49,6 @@ impl Settings {
     }
     pub fn get_notes_path(&self) -> PathBuf {
         expand_tilde(&self.notes_dir)
-    }
-    pub fn get_archive_path(&self) -> PathBuf {
-        expand_tilde(&self.archive_dir)
     }
     pub fn get_cache_path(&self) -> PathBuf {
         expand_tilde(&self.cache_dir)
@@ -118,7 +114,6 @@ mod tests {
             recurse: true,
             cache_dir: "~/.cache/ink".to_string(),
             notes_dir: "~/notes".to_string(),
-            archive_dir: "~/notes/archive".to_string(),
             ignore: ignore_patterns,
             note_template: None,
         }

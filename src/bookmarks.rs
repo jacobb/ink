@@ -35,9 +35,8 @@ pub fn mark(is_json: bool) {
             true,
             |note_file| has_extension(note_file) && contains_url(note_file),
             |path_str| {
-                if let Ok(bookmark) = Note::from_markdown_file(path_str) {
-                    bookmarks.borrow_mut().push(bookmark);
-                }
+                let bookmark = Note::from_markdown_file(path_str);
+                bookmarks.borrow_mut().push(bookmark);
             },
         );
         println!("{}", serde_json::to_string(&bookmarks).unwrap());
@@ -48,9 +47,8 @@ pub fn mark(is_json: bool) {
         true,
         |note_file| has_extension(note_file) && contains_url(note_file),
         |path_str| {
-            if let Ok(note) = Note::from_markdown_file(path_str) {
-                println!("{}\t{}", note.title, note.url.unwrap());
-            }
+            let note = Note::from_markdown_file(path_str);
+            println!("{}\t{}", note.title, note.url.unwrap());
         },
     );
 }

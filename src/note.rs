@@ -61,20 +61,7 @@ impl Serialize for Note {
 }
 
 impl Note {
-    pub fn new(title: String, maybe_id: Option<String>) -> Self {
-        let id = maybe_id.unwrap_or(slugify(&title));
-        Note {
-            body: None,
-            id,
-            title,
-            tags: HashSet::new(),
-            path: None,
-            url: None,
-            created: None,
-            modified: None,
-        }
-    }
-    pub fn from_markdown_file(path: &str) -> Result<Self, NoteError> {
+    pub fn from_markdown_file(path: &str) -> Self {
         let raw_markdown = get_markdown_str(path);
         let metadata = File::open(path).and_then(|f| f.metadata()).ok();
         let (created, modified) = match metadata {
@@ -90,7 +77,7 @@ impl Note {
             front_matter.url,
         );
         let id = get_id_from_path(path);
-        let note = Note {
+        Note {
             title: title.unwrap_or(id.clone()),
             body: Some(body),
             id,
@@ -99,8 +86,7 @@ impl Note {
             tags: tags.into_iter().collect(),
             created: created.map(DateTime::from),
             modified: modified.map(DateTime::from),
-        };
-        Ok(note)
+        }
     }
     pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
         let id = parsed_query.get_slug();
@@ -306,7 +292,7 @@ fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> O
     document
         .get_first(field)
         .and_then(|val| val.as_facet())
-        .cloned()
+        .map(Facet::from)
 }
 
 #[cfg(test)]
@@ -322,7 +308,6 @@ mod tests {
             recurse: true,
             cache_dir: "~/.cache/ink".to_string(),
             notes_dir: "/Users/test/notes".to_string(), // Use absolute path for test consistency
-            archive_dir: "/Users/test/notes/archive".to_string(),
             ignore: vec![
                 "archive/**".to_string(),
                 "Readwise/**".to_string(),
