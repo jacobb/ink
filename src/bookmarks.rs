@@ -16,9 +16,8 @@ struct BookmarkFrontMatter {
 }
 
 fn contains_url(entry: &DirEntry) -> bool {
-    let path_str = match entry.path().to_str() {
-        Some(s) => s,
-        None => return false,
+    let Some(path_str) = entry.path().to_str() else {
+        return false;
     };
     let matter = Matter::<YAML>::new();
     let raw_markdown = get_markdown_str(path_str);
@@ -35,9 +34,8 @@ pub fn mark(is_json: bool) {
             true,
             |note_file| has_extension(note_file) && contains_url(note_file),
             |path_str| {
-                if let Ok(bookmark) = Note::from_markdown_file(path_str) {
-                    bookmarks.borrow_mut().push(bookmark);
-                }
+                let bookmark = Note::from_markdown_file(path_str);
+                bookmarks.borrow_mut().push(bookmark);
             },
         );
         println!("{}", serde_json::to_string(&bookmarks).unwrap());
@@ -48,9 +46,8 @@ pub fn mark(is_json: bool) {
         true,
         |note_file| has_extension(note_file) && contains_url(note_file),
         |path_str| {
-            if let Ok(note) = Note::from_markdown_file(path_str) {
-                println!("{}\t{}", note.title, note.url.unwrap());
-            }
+            let note = Note::from_markdown_file(path_str);
+            println!("{}\t{}", note.title, note.url.unwrap());
         },
     );
 }
@@ -60,6 +57,6 @@ pub fn create_bookmark(url: &str, description: Option<String>) {
     println!("{}", note.title);
 
     if !note.file_exists() {
-        note.render_new_note()
-    };
+        note.render_new_note();
+    }
 }

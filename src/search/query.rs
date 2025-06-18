@@ -1,17 +1,24 @@
 use crate::cli::SortChoice;
 use crate::note::Note;
 use crate::prompt::ParsedQuery;
-use crate::search::index::{index_needs_update, spawn_index_update};
+use crate::search::index_updater::{index_needs_update, spawn_index_update};
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::DateTime as tantivy_DateTime;
-use tantivy::{collector::TopDocs, index::Order, query::*, schema::*, DocAddress, Index, Searcher};
+use tantivy::{
+    collector::TopDocs,
+    index::Order,
+    query::{BooleanQuery, BoostQuery, Occur, Query, QueryParser, TermQuery},
+    schema::{Facet, IndexRecordOption, TantivyDocument, Term},
+    DocAddress, Index, Searcher,
+};
 
 pub fn search_index(
     query: &str,
     is_json: bool,
     sort: Option<SortChoice>,
     limit: usize,
+    include_ignored: bool,
 ) -> tantivy::Result<()> {
     if index_needs_update()? {
         spawn_index_update();
@@ -55,8 +62,14 @@ pub fn search_index(
         queries.push((Occur::Should, Box::new(body_query)));
     }
 
+    if !include_ignored {
+        let is_hidden_term = Term::from_field_bool(schema.get_field("is_hidden").unwrap(), false);
+        let is_hidden_query = TermQuery::new(is_hidden_term, IndexRecordOption::Basic);
+        queries.push((Occur::Must, Box::new(is_hidden_query)));
+    }
+
     for tag in parsed_query.tags {
-        let facet = Facet::from(&format!("/tag/{}", tag));
+        let facet = Facet::from(&format!("/tag/{tag}"));
         let facet_term = Term::from_facet(schema.get_field("tag").unwrap(), &facet);
         let facet_query = TermQuery::new(facet_term, IndexRecordOption::Basic);
         queries.push((Occur::Must, Box::new(facet_query)));
@@ -67,6 +80,9 @@ pub fn search_index(
     // Create a searcher
     //
     let searcher = index.reader()?.searcher();
+    // Define minimum score threshold
+    let min_score_threshold = 0.5;
+
     let top_docs = match sort {
         Some(SortChoice::DescLastModified) => get_datetime_top_docs(
             &searcher,
@@ -85,6 +101,7 @@ pub fn search_index(
         _ => searcher
             .search(&combined_query, &TopDocs::with_limit(limit))?
             .into_iter()
+            .filter(|(score, _doc_address)| *score >= min_score_threshold)
             .map(|(_score, doc_address)| doc_address)
             .collect(),
     };

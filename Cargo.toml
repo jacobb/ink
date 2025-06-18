@@ -1,26 +1,40 @@
 [package]
 name = "ink"
+description = "ink: cli for markdown"
 version = "0.8.1"
 edition = "2021"
+repository = "https://github.com/jacobb/ink/"
+categories = ["command-line-utilities"]
+license = "Unlicense OR MIT"
+keywords = ["markdown", "notes"]
+
+[lints]
+workspace = true
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
 
 [profile.release]
 strip = "symbols"
 
 [dependencies]
 clap = { version = "4.5.0", features = ["derive"] }
-config = {version = "0.14.0", features = ["toml"] }
+config = {version = "0.15.0", features = ["toml"] }
 chrono = {version = "0.4.23", features = ["serde"] }
 minijinja = "0.12.0"
 gray_matter = "0.2.5"
 walkdir = "2.3.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-pulldown-cmark = "0.9.1"
-tantivy = "0.22"
+tantivy = "0.24"
 dirs = "5.0"
-lazy_static = "1.4"
-reqwest = { version = "0.11", features = ["json", "blocking"] }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
 scraper = "0.12"
 regex = "1.10.3"
-mio = "0.8.11"
-h2 = "0.3.26"
+globset = "0.4"
+
+# Security updates for vulnerable dependencies
+crossbeam-channel = "0.5.15"
+idna = "1.0.0"
+openssl = "0.10.72"

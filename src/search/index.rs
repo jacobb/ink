@@ -1,16 +1,19 @@
 use crate::note::Note;
+use crate::search::index_updater::update_index_metadata;
 use crate::settings::SETTINGS;
 use crate::utils::ensure_directory_exists;
 use crate::walk::{has_extension, walk_files};
 use std::path::PathBuf;
 use tantivy::tokenizer::NgramTokenizer;
-use tantivy::{schema::*, Index, IndexWriter, TantivyError};
+use tantivy::{
+    schema::{
+        Field, IndexRecordOption, Schema, Term, TextFieldIndexing, TextOptions, FAST, INDEXED,
+        STORED, STRING,
+    },
+    Index, IndexWriter, TantivyError,
+};
 
-fn add_document(
-    note: &Note,
-    index_writer: &IndexWriter,
-    schema: &Schema,
-) -> Result<(), TantivyError> {
+fn add_document(note: &Note, index_writer: &IndexWriter, schema: &Schema) {
     let path_field: Field = schema.get_field("path").unwrap();
     let path = note.get_file_path();
     let path_str = path
@@ -24,31 +27,21 @@ fn add_document(
     // Delete any existing document with the same path
 
     let _ = index_writer.add_document(note.to_tantivy_document(schema));
-    Ok(())
 }
 
 fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) {
-    let note = match Note::from_markdown_file(markdown_path) {
-        Ok(note) => note,
-        Err(e) => {
-            println!("{}: Error parsing", e.msg);
-            return;
-        }
-    };
-    if let Err(e) = add_document(&note, index_writer, schema) {
-        println!("Failed to add note: {}", e);
-    }
+    let note = Note::from_markdown_file(markdown_path);
+    add_document(&note, index_writer, schema);
 }
 
 // Handling Index
 fn open_or_create_index(index_path: &PathBuf, schema: &Schema) -> Result<Index, TantivyError> {
     ensure_directory_exists(index_path)?;
-    match Index::open_in_dir(index_path) {
-        Ok(index) => Ok(index), // If successful, return the existing index
-        Err(_) => {
-            println!("Creating index in {}", &index_path.to_str().unwrap());
-            Index::create_in_dir(index_path, schema.clone())
-        }
+    if let Ok(index) = Index::open_in_dir(index_path) {
+        Ok(index)
+    } else {
+        println!("Creating index in {}", &index_path.to_str().unwrap());
+        Index::create_in_dir(index_path, schema.clone())
     }
 }
 
@@ -81,6 +74,8 @@ fn get_schema() -> Schema {
     schema_builder.add_text_field("typeahead_title", typeahead_options);
     schema_builder.add_text_field("sort_title", FAST);
 
+    schema_builder.add_bool_field("is_hidden", INDEXED | FAST | STORED);
+
     schema_builder.add_text_field("title", stored_text_options);
     schema_builder.add_text_field("body", text_options);
     schema_builder.add_text_field("path", STRING | STORED);
@@ -97,7 +92,7 @@ pub fn create_index_and_add_documents() -> tantivy::Result<()> {
     let mut index_writer = index.writer(50_000_000)?;
 
     walk_files(&SETTINGS.get_notes_path(), true, has_extension, |path| {
-        index_file(path, &schema, &index_writer)
+        index_file(path, &schema, &index_writer);
     });
 
     index_writer.commit()?;
@@ -107,53 +102,4 @@ pub fn create_index_and_add_documents() -> tantivy::Result<()> {
     println!("Indexed {} documents", searcher.num_docs());
     update_index_metadata().expect("Error writing index metadata file");
     Ok(())
-}
-
-use std::fs;
-use std::io::Read;
-use std::process::{Command, Stdio};
-use std::time::SystemTime;
-
-fn get_metadata_path() -> PathBuf {
-    SETTINGS.get_cache_path().join("index_metadata.txt")
-}
-
-fn update_index_metadata() -> std::io::Result<()> {
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    fs::write(get_metadata_path(), now.to_string())
-}
-
-pub fn index_needs_update() -> std::io::Result<bool> {
-    let metadata_path = get_metadata_path();
-    if !metadata_path.exists() {
-        return Ok(true);
-    }
-
-    let mut contents = String::new();
-    fs::File::open(metadata_path)?.read_to_string(&mut contents)?;
-    let last_update = contents.parse::<u64>().unwrap_or(0);
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    Ok(now - last_update > 300) // 5 minutes
-}
-
-pub fn spawn_index_update() {
-    match Command::new(std::env::current_exe().unwrap())
-        .arg("index")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    {
-        Ok(child) => {
-            // Intentionally not waiting for the child process
-            std::mem::forget(child);
-        }
-        Err(e) => eprintln!("Failed to spawn indexing process: {}", e),
-    }
 }

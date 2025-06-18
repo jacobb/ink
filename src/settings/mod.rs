@@ -1,10 +1,10 @@
 use crate::utils::expand_tilde;
 use config::{Config, ConfigError, Environment, File, FileFormat};
-use lazy_static::lazy_static;
+use globset::{Glob, GlobSetBuilder};
 use serde::Deserialize;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -12,6 +12,7 @@ pub struct Settings {
     pub recurse: bool,
     pub cache_dir: String,
     pub notes_dir: String,
+    pub ignore: Vec<String>,
     pub note_template: Option<String>,
 }
 
@@ -36,9 +37,10 @@ impl Settings {
         let s = Config::builder()
             // Start off by merging in the "default" configuration file
             .add_source(File::from_str(default_config, FileFormat::Toml))
+            // Start off by merging in the "default" configuration file
             .add_source(File::with_name(config_file).required(false))
             .set_default("cache_dir", cache_dir)?
-            .add_source(Environment::with_prefix("app"))
+            .add_source(Environment::with_prefix("ink"))
             .build()?;
 
         // You can deserialize (and thus freeze) the entire configuration as
@@ -61,26 +63,131 @@ impl Settings {
             None => include_str!("../settings/config/default-note.template.md").to_string(),
         }
     }
+
+    pub fn is_path_ignored(&self, path: &Path) -> bool {
+        let mut builder = GlobSetBuilder::new();
+
+        for pattern in &self.ignore {
+            if let Ok(glob) = Glob::new(pattern) {
+                builder.add(glob);
+            }
+        }
+
+        if let Ok(globset) = builder.build() {
+            globset.is_match(path)
+        } else {
+            false
+        }
+    }
 }
 
 fn get_config_file() -> PathBuf {
     match env::var("XDG_CONFIG_HOME") {
         Ok(path) => PathBuf::from(path).join("ink/ink.toml"),
-        Err(_) => env::var("HOME")
-            .map(|p| PathBuf::from(p).join(".config/ink/ink.toml"))
-            .unwrap_or_else(|_| panic!("HOME directory not found")),
+        Err(_) => env::var("HOME").map_or_else(
+            |_| panic!("HOME directory not found"),
+            |p| PathBuf::from(p).join(".config/ink/ink.toml"),
+        ),
     }
 }
 
 fn get_cache_dir() -> PathBuf {
     match env::var("XDG_CACHE_HOME") {
         Ok(path) => PathBuf::from(path).join("ink"),
-        Err(_) => env::var("HOME")
-            .map(|p| PathBuf::from(p).join(".cache/ink"))
-            .unwrap_or_else(|_| panic!("HOME directory not found")),
+        Err(_) => env::var("HOME").map_or_else(
+            |_| panic!("HOME directory not found"),
+            |p| PathBuf::from(p).join(".cache/ink"),
+        ),
     }
 }
 
-lazy_static! {
-    pub static ref SETTINGS: Settings = Settings::new().expect("Failed to load configuration");
+pub static SETTINGS: std::sync::LazyLock<Settings> =
+    std::sync::LazyLock::new(|| Settings::new().expect("failred to load configuration"));
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    fn create_test_settings(ignore_patterns: Vec<String>) -> Settings {
+        Settings {
+            recurse: true,
+            cache_dir: "~/.cache/ink".to_string(),
+            notes_dir: "~/notes".to_string(),
+            ignore: ignore_patterns,
+            note_template: None,
+        }
+    }
+
+    #[test]
+    fn test_is_path_ignored_directory_patterns() {
+        let settings =
+            create_test_settings(vec!["archive/**".to_string(), "Readwise/**".to_string()]);
+
+        // Should ignore files in these directories
+        assert!(settings.is_path_ignored(Path::new("archive/deleted-markdown-file.md")));
+        assert!(settings.is_path_ignored(Path::new("Readwise/a-literature-note.md")));
+        assert!(settings.is_path_ignored(Path::new("archive/subfolder/old-note.md")));
+
+        // Should not ignore top-level files or other directories
+        assert!(!settings.is_path_ignored(Path::new("index.md")));
+        assert!(!settings.is_path_ignored(Path::new("a-cool-project/note.md")));
+        assert!(!settings.is_path_ignored(Path::new("documents/important.md")));
+    }
+
+    #[test]
+    fn test_is_path_ignored_wildcard_directory_patterns() {
+        let settings =
+            create_test_settings(vec!["*.backup/**".to_string(), "temp*/**".to_string()]);
+
+        // Should ignore files in wildcard-matched directories
+        assert!(settings.is_path_ignored(Path::new("notes.backup/file.md")));
+        assert!(settings.is_path_ignored(Path::new("data.backup/important.md")));
+        assert!(settings.is_path_ignored(Path::new("temp_files/draft.md")));
+        assert!(settings.is_path_ignored(Path::new("temporary/notes.md")));
+
+        // Should not ignore files in non-matching directories
+        assert!(!settings.is_path_ignored(Path::new("backup/file.md")));
+        assert!(!settings.is_path_ignored(Path::new("files.temp/note.md")));
+        assert!(!settings.is_path_ignored(Path::new("project/temp_note.md")));
+    }
+
+    #[test]
+    fn test_is_path_ignored_default_config_patterns() {
+        let settings = create_test_settings(vec![
+            "archive/**".to_string(),
+            "Readwise/**".to_string(),
+            "*.backup/**".to_string(),
+            "temp*/**".to_string(),
+        ]);
+
+        // Test the expected default behavior
+        assert!(settings.is_path_ignored(Path::new("archive/deleted-note.md")));
+        assert!(settings.is_path_ignored(Path::new("Readwise/literature-note.md")));
+        assert!(settings.is_path_ignored(Path::new("notes.backup/old.md")));
+        assert!(settings.is_path_ignored(Path::new("temp_drafts/draft.md")));
+
+        // These should NOT be ignored
+        assert!(!settings.is_path_ignored(Path::new("index.md")));
+        assert!(!settings.is_path_ignored(Path::new("a-cool-project/note.md")));
+        assert!(!settings.is_path_ignored(Path::new("documents/research.md")));
+        assert!(!settings.is_path_ignored(Path::new("projects/work/meeting-notes.md")));
+    }
+
+    #[test]
+    fn test_is_path_ignored_empty_patterns() {
+        let settings = create_test_settings(vec![]);
+
+        // No patterns should mean nothing is ignored
+        assert!(!settings.is_path_ignored(Path::new("archive/file.md")));
+        assert!(!settings.is_path_ignored(Path::new("any/path/file.md")));
+    }
+
+    #[test]
+    fn test_is_path_ignored_invalid_patterns() {
+        let settings = create_test_settings(vec!["[invalid".to_string()]);
+
+        // Invalid patterns should not match anything
+        assert!(!settings.is_path_ignored(Path::new("test/file.md")));
+    }
 }
