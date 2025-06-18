@@ -302,6 +302,22 @@ mod tests {
     use crate::settings::Settings;
     use std::collections::HashSet;
 
+    impl Note {
+        pub fn new(title: String, maybe_id: Option<String>) -> Self {
+            let id = maybe_id.unwrap_or(slugify(&title));
+            Note {
+                body: None,
+                id,
+                title,
+                tags: HashSet::new(),
+                path: None,
+                url: None,
+                created: None,
+                modified: None,
+            }
+        }
+    }
+
     // Create default settings for testing (matches default.toml)
     fn create_default_settings() -> Settings {
         Settings {
