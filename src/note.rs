@@ -90,7 +90,7 @@ impl Note {
     }
     pub fn from_parsed_prompt(parsed_query: ParsedQuery) -> Self {
         let id = parsed_query.get_slug();
-        let path = format!("{}.md", id);
+        let path = format!("{id}.md");
         Note {
             body: None,
             id,
@@ -165,7 +165,7 @@ impl Note {
         let final_body = [body, " ", title].concat();
         doc.add_text(schema.get_field("body").unwrap(), final_body);
         for tag in &self.tags {
-            let facet = Facet::from(&format!("/tag/{}", tag));
+            let facet = Facet::from(&format!("/tag/{tag}"));
             doc.add_facet(schema.get_field("tag").unwrap(), facet);
         }
         doc
@@ -180,7 +180,7 @@ impl Note {
             Err(_) => url.to_string(),
         };
         let id = maybe_id.unwrap_or(slugify(&title));
-        let path = format!("{}.md", id);
+        let path = format!("{id}.md");
         let mut note = Note {
             body: maybe_description,
             id,

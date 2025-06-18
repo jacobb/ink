@@ -8,9 +8,8 @@ fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
         return true;
     }
 
-    let path_str = match entry.path().to_str() {
-        Some(s) => s,
-        None => return false,
+    let Some(path_str) = entry.path().to_str() else {
+        return false;
     };
     let raw_markdown = get_markdown_str(path_str);
     let front_matter = frontmatter(&raw_markdown);
@@ -31,9 +30,9 @@ pub fn list(recurse_into: bool, tags: &[String], _include_ignored: bool) {
             let raw_markdown = get_markdown_str(path_str);
             let front_matter = frontmatter(&raw_markdown);
             if let Some(title) = front_matter.title {
-                println!("{}\t{}", title, path_str);
+                println!("{title}\t{path_str}");
             } else {
-                println!("{}\t{}", path_str, path_str);
+                println!("{path_str}\t{path_str}");
             }
         },
     );

@@ -1,7 +1,12 @@
 [package]
 name = "ink"
+description = "ink: cli for markdown"
 version = "0.8.1"
 edition = "2021"
+repository = "https://github.com/jacobb/ink/"
+categories = ["command-line-utilities"]
+license = "Unlicense OR MIT"
+keywords = ["markdown", "notes"]
 
 [profile.release]
 strip = "symbols"

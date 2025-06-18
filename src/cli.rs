@@ -115,7 +115,7 @@ pub fn run_cli() {
             }
         }
         Commands::Index {} => match create_index_and_add_documents() {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(_) => println!("An error occured indexing"),
         },
         Commands::Search {
@@ -125,8 +125,8 @@ pub fn run_cli() {
             limit,
             include_ignored,
         } => match search_index(query, *json, *sort, *limit, *include_ignored) {
-            Ok(_) => (),
-            Err(e) => println!("Could not complete a search {}", e),
+            Ok(()) => (),
+            Err(e) => println!("Could not complete a search {e}"),
         },
     }
 }
