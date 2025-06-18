@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use tantivy::schema::document::Value;
 use tantivy::DateTime as tantivy_DateTime;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct NoteError {
     pub msg: String,

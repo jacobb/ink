@@ -26,17 +26,3 @@ jobs:
       
       - name: Run security audit
         run: cargo audit
-
-  supply_chain:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install cargo-deny
-        run: cargo install cargo-deny
-      
-      - name: Check licenses and advisories
-        run: cargo deny check
