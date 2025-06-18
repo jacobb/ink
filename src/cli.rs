@@ -31,6 +31,9 @@ enum Commands {
         /// Tag to limit results by
         #[arg(long, short, value_delimiter = ',', action = ArgAction::Append)]
         tags: Vec<String>,
+        /// Include notes from ignored directories
+        #[arg(long, short = 'i')]
+        include_ignored: bool,
     },
     /// List/Create bookmarks (ie, notes with a url attribute)
     Mark {
@@ -59,6 +62,9 @@ enum Commands {
         /// How many results to return
         #[arg(long, short, default_value = "10")]
         limit: usize,
+        /// Include notes from ignored directories
+        #[arg(long, short = 'i')]
+        include_ignored: bool,
     },
 }
 
@@ -81,9 +87,13 @@ pub fn run_cli() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::List { recurse, tags } => {
+        Commands::List {
+            recurse,
+            tags,
+            include_ignored,
+        } => {
             let final_recurse = recurse.unwrap_or(SETTINGS.recurse);
-            list(final_recurse, tags);
+            list(final_recurse, tags, *include_ignored);
         }
         Commands::Mark { action } => match action {
             BookmarkCommands::List { json } => {
@@ -113,7 +123,8 @@ pub fn run_cli() {
             query,
             sort,
             limit,
-        } => match search_index(query, *json, *sort, *limit) {
+            include_ignored,
+        } => match search_index(query, *json, *sort, *limit, *include_ignored) {
             Ok(_) => (),
             Err(e) => println!("Could not complete a search {}", e),
         },

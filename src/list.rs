@@ -20,21 +20,21 @@ fn tag_matches(entry: &DirEntry, target_tags: &[String]) -> bool {
     false
 }
 
-pub fn list(recurse_into: bool, tags: &[String]) {
+pub fn list(recurse_into: bool, tags: &[String], _include_ignored: bool) {
+    // TODO: Implement include_ignored functionality for list
+    // For now, just use the original implementation
     walk_files(
         &SETTINGS.get_notes_path(),
         recurse_into,
-        |note| has_extension(note) && tag_matches(note, tags),
-        render_file,
+        |entry| has_extension(entry) && tag_matches(entry, tags),
+        |path_str| {
+            let raw_markdown = get_markdown_str(path_str);
+            let front_matter = frontmatter(&raw_markdown);
+            if let Some(title) = front_matter.title {
+                println!("{}\t{}", title, path_str);
+            } else {
+                println!("{}\t{}", path_str, path_str);
+            }
+        },
     );
-}
-
-fn render_file(path_str: &str) {
-    let raw_markdown = get_markdown_str(path_str);
-    let front_matter = frontmatter(&raw_markdown);
-    if let Some(title) = front_matter.title {
-        println!("{}\t{}", title, path_str);
-    } else {
-        println!("{}\t{}", path_str, path_str);
-    }
 }

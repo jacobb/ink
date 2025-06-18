@@ -153,6 +153,7 @@ impl Note {
                 .to_str()
                 .expect("Path required to index document"),
         );
+        doc.add_bool(schema.get_field("is_hidden").unwrap(), self.is_hidden());
 
         if let Some(created) = self.created {
             doc.add_date(
@@ -224,7 +225,28 @@ impl Note {
         render_note(self.get_file_path(), self).unwrap();
     }
     pub fn is_hidden(&self) -> bool {
-        self.tags.contains("hidden")
+        self.is_hidden_with_settings(&SETTINGS)
+    }
+
+    // Helper method that allows injecting settings for testing
+    pub fn is_hidden_with_settings(&self, settings: &crate::settings::Settings) -> bool {
+        // Check if note has hidden tag
+        if self.tags.contains("hidden") {
+            return true;
+        }
+
+        // Check if note is in an ignored directory
+        let notes_path = settings.get_notes_path();
+        if let Some(path_str) = &self.path {
+            let path = std::path::Path::new(path_str);
+
+            if let Ok(relative_path) = path.strip_prefix(&notes_path) {
+                return settings.is_path_ignored(relative_path);
+            }
+            return settings.is_path_ignored(path);
+        }
+
+        false
     }
 }
 
@@ -291,7 +313,25 @@ fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> O
 mod tests {
     use super::*;
     use crate::prompt::ParsedQuery;
+    use crate::settings::Settings;
     use std::collections::HashSet;
+
+    // Create default settings for testing (matches default.toml)
+    fn create_default_settings() -> Settings {
+        Settings {
+            recurse: true,
+            cache_dir: "~/.cache/ink".to_string(),
+            notes_dir: "/Users/test/notes".to_string(), // Use absolute path for test consistency
+            archive_dir: "/Users/test/notes/archive".to_string(),
+            ignore: vec![
+                "archive/**".to_string(),
+                "Readwise/**".to_string(),
+                "*.backup/**".to_string(),
+                "temp*/**".to_string(),
+            ],
+            note_template: None,
+        }
+    }
 
     #[test]
     fn test_note_new_with_title_only() {
@@ -488,5 +528,92 @@ mod tests {
         // Should still be hidden with other tags present
         note.add_tag("more-tags".to_string());
         assert!(note.is_hidden());
+    }
+
+    #[test]
+    fn test_note_is_hidden_by_ignored_path() {
+        let settings = create_default_settings();
+
+        // Test note in archive directory (should be hidden)
+        let mut archive_note = Note::new("Archive Note".to_string(), None);
+        archive_note.path = Some("archive/old-note.md".to_string());
+        assert!(archive_note.is_hidden_with_settings(&settings));
+
+        // Test note in Readwise directory (should be hidden)
+        let mut readwise_note = Note::new("Readwise Note".to_string(), None);
+        readwise_note.path = Some("Readwise/literature-note.md".to_string());
+        assert!(readwise_note.is_hidden_with_settings(&settings));
+
+        // Test note in backup directory (should be hidden due to *.backup pattern)
+        let mut backup_note = Note::new("Backup Note".to_string(), None);
+        backup_note.path = Some("notes.backup/file.md".to_string());
+        assert!(backup_note.is_hidden_with_settings(&settings));
+
+        // Test note in regular directory (should not be hidden)
+        let mut regular_note = Note::new("Regular Note".to_string(), None);
+        regular_note.path = Some("projects/work-note.md".to_string());
+        assert!(!regular_note.is_hidden_with_settings(&settings));
+
+        // Test top-level note (should not be hidden)
+        let mut top_level_note = Note::new("Top Level Note".to_string(), None);
+        top_level_note.path = Some("index.md".to_string());
+        assert!(!top_level_note.is_hidden_with_settings(&settings));
+    }
+
+    #[test]
+    fn test_note_is_hidden_precedence() {
+        let settings = create_default_settings();
+
+        // Test that hidden tag takes precedence even in non-ignored directory
+        let mut tagged_note = Note::new("Tagged Note".to_string(), None);
+        tagged_note.path = Some("projects/work-note.md".to_string());
+        tagged_note.add_tag("hidden".to_string());
+        assert!(tagged_note.is_hidden_with_settings(&settings));
+
+        // Test that being in ignored directory makes it hidden even without tag
+        let mut ignored_path_note = Note::new("Ignored Path Note".to_string(), None);
+        ignored_path_note.path = Some("archive/old-note.md".to_string());
+        assert!(ignored_path_note.is_hidden_with_settings(&settings));
+
+        // Add non-hidden tags - should still be hidden due to path
+        ignored_path_note.add_tag("work".to_string());
+        ignored_path_note.add_tag("important".to_string());
+        assert!(ignored_path_note.is_hidden_with_settings(&settings));
+    }
+
+    #[test]
+    fn test_note_is_hidden_with_absolute_paths() {
+        let settings = create_default_settings();
+
+        // REGRESSION TEST: This test demonstrates the bug where absolute paths
+        // don't match the relative glob patterns in ignore config
+
+        // Simulate what happens when Note::from_markdown_file creates a note
+        // with an absolute path (as walk_files provides absolute paths)
+        let mut absolute_path_note = Note::new("Archive Note".to_string(), None);
+        absolute_path_note.path = Some("/Users/test/notes/archive/old-note.md".to_string());
+
+        // This currently fails because is_path_ignored receives an absolute path
+        // but the glob patterns expect relative paths like "archive/**"
+        assert!(
+            absolute_path_note.is_hidden_with_settings(&settings),
+            "Note with absolute path in archive directory should be hidden"
+        );
+
+        // Test another absolute path that should be hidden
+        let mut readwise_absolute_note = Note::new("Readwise Note".to_string(), None);
+        readwise_absolute_note.path = Some("/Users/test/notes/Readwise/literature.md".to_string());
+        assert!(
+            readwise_absolute_note.is_hidden_with_settings(&settings),
+            "Note with absolute path in Readwise directory should be hidden"
+        );
+
+        // Test absolute path that should NOT be hidden
+        let mut regular_absolute_note = Note::new("Regular Note".to_string(), None);
+        regular_absolute_note.path = Some("/Users/test/notes/projects/work.md".to_string());
+        assert!(
+            !regular_absolute_note.is_hidden_with_settings(&settings),
+            "Note with absolute path in regular directory should not be hidden"
+        );
     }
 }

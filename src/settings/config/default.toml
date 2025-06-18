@@ -1,3 +1,5 @@
 recurse = true
-# cache_dir = "~/.cache/ink" -- set via env var
-# notes_dir = "~/notes" -- set via env var
+cache_dir = "~/.cache/ink"
+notes_dir = "~/notes"
+archive_dir = "~/notes/archive"
+ignore = ["archive/**", "Readwise/**", "*.backup/**", "temp*/**"]

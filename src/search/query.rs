@@ -12,6 +12,7 @@ pub fn search_index(
     is_json: bool,
     sort: Option<SortChoice>,
     limit: usize,
+    include_ignored: bool,
 ) -> tantivy::Result<()> {
     if index_needs_update()? {
         spawn_index_update();
@@ -55,6 +56,12 @@ pub fn search_index(
         queries.push((Occur::Should, Box::new(body_query)));
     }
 
+    if !include_ignored {
+        let is_hidden_term = Term::from_field_bool(schema.get_field("is_hidden").unwrap(), false);
+        let is_hidden_query = TermQuery::new(is_hidden_term, IndexRecordOption::Basic);
+        queries.push((Occur::Must, Box::new(is_hidden_query)));
+    }
+
     for tag in parsed_query.tags {
         let facet = Facet::from(&format!("/tag/{}", tag));
         let facet_term = Term::from_facet(schema.get_field("tag").unwrap(), &facet);
@@ -67,6 +74,9 @@ pub fn search_index(
     // Create a searcher
     //
     let searcher = index.reader()?.searcher();
+    // Define minimum score threshold
+    let min_score_threshold = 0.5;
+
     let top_docs = match sort {
         Some(SortChoice::DescLastModified) => get_datetime_top_docs(
             &searcher,
@@ -85,6 +95,7 @@ pub fn search_index(
         _ => searcher
             .search(&combined_query, &TopDocs::with_limit(limit))?
             .into_iter()
+            .filter(|(score, _doc_address)| *score >= min_score_threshold)
             .map(|(_score, doc_address)| doc_address)
             .collect(),
     };

@@ -82,6 +82,8 @@ fn get_schema() -> Schema {
     schema_builder.add_text_field("typeahead_title", typeahead_options);
     schema_builder.add_text_field("sort_title", FAST);
 
+    schema_builder.add_bool_field("is_hidden", INDEXED | FAST | STORED);
+
     schema_builder.add_text_field("title", stored_text_options);
     schema_builder.add_text_field("body", text_options);
     schema_builder.add_text_field("path", STRING | STORED);
