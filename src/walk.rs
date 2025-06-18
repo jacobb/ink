@@ -3,7 +3,9 @@ use walkdir::{DirEntry, WalkDir};
 
 pub fn has_extension(entry: &DirEntry) -> bool {
     let name = entry.file_name().to_str().unwrap();
-    name.ends_with(".md")
+    std::path::Path::new(name)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
 pub fn walk_files<F, R>(dir: &PathBuf, recurse_into: bool, filter: F, render: R)

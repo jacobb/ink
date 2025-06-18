@@ -1,7 +1,6 @@
 use crate::utils::expand_tilde;
 use config::{Config, ConfigError, Environment, File, FileFormat};
 use globset::{Glob, GlobSetBuilder};
-use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
 use std::fs;
@@ -100,9 +99,8 @@ fn get_cache_dir() -> PathBuf {
     }
 }
 
-lazy_static! {
-    pub static ref SETTINGS: Settings = Settings::new().expect("Failed to load configuration");
-}
+pub static SETTINGS: std::sync::LazyLock<Settings> =
+    std::sync::LazyLock::new(|| Settings::new().expect("failred to load configuration"));
 
 #[cfg(test)]
 mod tests {

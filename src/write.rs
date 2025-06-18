@@ -16,8 +16,8 @@ pub fn prompt(title: &str) -> Note {
     note.add_tag("prompt".to_string());
 
     if !note.file_exists() {
-        note.render_new_note()
-    };
+        note.render_new_note();
+    }
     note
 }
 
