@@ -5,7 +5,13 @@ use crate::search::index_updater::{index_needs_update, spawn_index_update};
 use crate::settings::SETTINGS;
 use tantivy::tokenizer::NgramTokenizer;
 use tantivy::DateTime as tantivy_DateTime;
-use tantivy::{collector::TopDocs, index::Order, query::*, schema::*, DocAddress, Index, Searcher};
+use tantivy::{
+    collector::TopDocs,
+    index::Order,
+    query::{BooleanQuery, BoostQuery, Occur, Query, QueryParser, TermQuery},
+    schema::{Facet, IndexRecordOption, TantivyDocument, Term},
+    DocAddress, Index, Searcher,
+};
 
 pub fn search_index(
     query: &str,
@@ -63,7 +69,7 @@ pub fn search_index(
     }
 
     for tag in parsed_query.tags {
-        let facet = Facet::from(&format!("/tag/{}", tag));
+        let facet = Facet::from(&format!("/tag/{tag}"));
         let facet_term = Term::from_facet(schema.get_field("tag").unwrap(), &facet);
         let facet_query = TermQuery::new(facet_term, IndexRecordOption::Basic);
         queries.push((Occur::Must, Box::new(facet_query)));

@@ -45,6 +45,6 @@ pub fn spawn_index_update() {
             // Intentionally not waiting for the child process
             std::mem::forget(child);
         }
-        Err(e) => eprintln!("Failed to spawn indexing process: {}", e),
+        Err(e) => eprintln!("Failed to spawn indexing process: {e}"),
     }
 }

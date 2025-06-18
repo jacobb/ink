@@ -5,13 +5,15 @@ use crate::utils::ensure_directory_exists;
 use crate::walk::{has_extension, walk_files};
 use std::path::PathBuf;
 use tantivy::tokenizer::NgramTokenizer;
-use tantivy::{schema::*, Index, IndexWriter, TantivyError};
+use tantivy::{
+    schema::{
+        Field, IndexRecordOption, Schema, Term, TextFieldIndexing, TextOptions, FAST, INDEXED,
+        STORED, STRING,
+    },
+    Index, IndexWriter, TantivyError,
+};
 
-fn add_document(
-    note: &Note,
-    index_writer: &IndexWriter,
-    schema: &Schema,
-) -> Result<(), TantivyError> {
+fn add_document(note: &Note, index_writer: &IndexWriter, schema: &Schema) {
     let path_field: Field = schema.get_field("path").unwrap();
     let path = note.get_file_path();
     let path_str = path
@@ -25,25 +27,21 @@ fn add_document(
     // Delete any existing document with the same path
 
     let _ = index_writer.add_document(note.to_tantivy_document(schema));
-    Ok(())
 }
 
 fn index_file(markdown_path: &str, schema: &Schema, index_writer: &IndexWriter) {
     let note = Note::from_markdown_file(markdown_path);
-    if let Err(e) = add_document(&note, index_writer, schema) {
-        println!("Failed to add note: {}", e);
-    }
+    add_document(&note, index_writer, schema);
 }
 
 // Handling Index
 fn open_or_create_index(index_path: &PathBuf, schema: &Schema) -> Result<Index, TantivyError> {
     ensure_directory_exists(index_path)?;
-    match Index::open_in_dir(index_path) {
-        Ok(index) => Ok(index), // If successful, return the existing index
-        Err(_) => {
-            println!("Creating index in {}", &index_path.to_str().unwrap());
-            Index::create_in_dir(index_path, schema.clone())
-        }
+    if let Ok(index) = Index::open_in_dir(index_path) {
+        Ok(index)
+    } else {
+        println!("Creating index in {}", &index_path.to_str().unwrap());
+        Index::create_in_dir(index_path, schema.clone())
     }
 }
 
@@ -94,7 +92,7 @@ pub fn create_index_and_add_documents() -> tantivy::Result<()> {
     let mut index_writer = index.writer(50_000_000)?;
 
     walk_files(&SETTINGS.get_notes_path(), true, has_extension, |path| {
-        index_file(path, &schema, &index_writer)
+        index_file(path, &schema, &index_writer);
     });
 
     index_writer.commit()?;

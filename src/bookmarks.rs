@@ -49,7 +49,7 @@ pub fn mark(is_json: bool) {
             let note = Note::from_markdown_file(path_str);
             println!("{}\t{}", note.title, note.url.unwrap());
         },
-    )
+    );
 }
 
 pub fn create_bookmark(url: &str, description: Option<String>) {
@@ -57,6 +57,6 @@ pub fn create_bookmark(url: &str, description: Option<String>) {
     println!("{}", note.title);
 
     if !note.file_exists() {
-        note.render_new_note()
+        note.render_new_note();
     }
 }

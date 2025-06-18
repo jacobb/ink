@@ -8,6 +8,13 @@ categories = ["command-line-utilities"]
 license = "Unlicense OR MIT"
 keywords = ["markdown", "notes"]
 
+[lints]
+workspace = true
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
 [profile.release]
 strip = "symbols"
 

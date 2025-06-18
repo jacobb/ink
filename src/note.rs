@@ -268,7 +268,7 @@ fn get_field_string_from_document(
     document
         .get_first(field)
         .and_then(|val| val.as_str())
-        .map(|str_val| str_val.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 fn get_field_date_from_document(
@@ -396,7 +396,7 @@ mod tests {
 
         let expected_tags: HashSet<String> = ["rust", "programming"]
             .iter()
-            .map(|s| s.to_string())
+            .map(|&s| s.to_string())
             .collect();
         assert_eq!(note.tags, expected_tags);
     }
@@ -422,7 +422,7 @@ mod tests {
         assert_eq!(note.url, Some("https://example.com".to_string()));
 
         let expected_tags: HashSet<String> =
-            ["web", "bookmark"].iter().map(|s| s.to_string()).collect();
+            ["web", "bookmark"].iter().map(|&s| s.to_string()).collect();
         assert_eq!(note.tags, expected_tags);
     }
 

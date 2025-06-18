@@ -84,18 +84,20 @@ impl Settings {
 fn get_config_file() -> PathBuf {
     match env::var("XDG_CONFIG_HOME") {
         Ok(path) => PathBuf::from(path).join("ink/ink.toml"),
-        Err(_) => env::var("HOME")
-            .map(|p| PathBuf::from(p).join(".config/ink/ink.toml"))
-            .unwrap_or_else(|_| panic!("HOME directory not found")),
+        Err(_) => env::var("HOME").map_or_else(
+            |_| panic!("HOME directory not found"),
+            |p| PathBuf::from(p).join(".config/ink/ink.toml"),
+        ),
     }
 }
 
 fn get_cache_dir() -> PathBuf {
     match env::var("XDG_CACHE_HOME") {
         Ok(path) => PathBuf::from(path).join("ink"),
-        Err(_) => env::var("HOME")
-            .map(|p| PathBuf::from(p).join(".cache/ink"))
-            .unwrap_or_else(|_| panic!("HOME directory not found")),
+        Err(_) => env::var("HOME").map_or_else(
+            |_| panic!("HOME directory not found"),
+            |p| PathBuf::from(p).join(".cache/ink"),
+        ),
     }
 }
 
