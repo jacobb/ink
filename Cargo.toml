@@ -22,7 +22,7 @@ strip = "symbols"
 clap = { version = "4.5.0", features = ["derive"] }
 config = {version = "0.15.0", features = ["toml"] }
 chrono = {version = "0.4.23", features = ["serde"] }
-minijinja = "2.10.2"
+minijinja = "2.11.0"
 gray_matter = "0.2.5"
 walkdir = "2.3.2"
 serde = { version = "1.0", features = ["derive"] }
