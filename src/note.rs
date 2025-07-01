@@ -287,13 +287,22 @@ fn get_field_date_from_document(
         })
 }
 
-fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> Option<Facet> {
-    // Extract the values from the document
+fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> Vec<Facet> {
     let field = schema.get_field(field_name).expect("Cannot find field");
-    document
-        .get_first(field)
-        .and_then(|val| val.as_facet())
-        .map(Facet::from)
+    let mut facets = Vec::new();
+
+    for value in document.get_all(field) {
+        if let Some(facet_str) = value.as_facet() {
+            match Facet::from_text(facet_str) {
+                Ok(facet) => facets.push(facet),
+                Err(e) => {
+                    eprintln!("Warning: Skipping invalid facet '{facet_str}': {e}");
+                }
+            }
+        }
+    }
+
+    facets
 }
 
 #[cfg(test)]
@@ -617,5 +626,23 @@ mod tests {
             !regular_absolute_note.is_hidden_with_settings(&settings),
             "Note with absolute path in regular directory should not be hidden"
         );
+    }
+
+    #[test]
+    fn test_tag_with_null_byte_issue() {
+        // This test documents the issue where tags with null bytes cause problems
+        // The issue occurs when a facet string contains a null byte, which is invalid
+        // This can happen if markdown files contain corrupted data or from external sources
+
+        let mut note = Note::new("Test Note".to_string(), None);
+
+        // Add a tag that contains a null byte (reproduces the actual error case)
+        note.tags.insert("tag\0prompt".to_string());
+
+        // The problematic tag is now in the note
+        assert!(note.tags.contains("tag\0prompt"));
+
+        // The issue will manifest when this note is indexed and then searched
+        // This test documents the problematic data structure that causes the search panic
     }
 }

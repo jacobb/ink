@@ -38,3 +38,6 @@ globset = "0.4"
 crossbeam-channel = "0.5.15"
 idna = "1.0.0"
 openssl = "0.10.72"
+
+[dev-dependencies]
+tempfile = "3.12"
