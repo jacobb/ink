@@ -48,6 +48,11 @@ This note has a tag with a null byte that currently causes a crash.
     // Set up environment to use our temporary directory
     std::env::set_var("INK_NOTES_DIR", notes_dir.to_str().unwrap());
 
+    // Set up cache directory to avoid "DoesNotExist" error
+    let cache_dir = temp_dir.path().join("cache");
+    fs::create_dir_all(&cache_dir).expect("Failed to create cache directory");
+    std::env::set_var("XDG_CACHE_HOME", temp_dir.path().to_str().unwrap());
+
     // Search should succeed gracefully, not crash
     let output = std::process::Command::new("./target/debug/ink")
         .args(["search", "note"])
