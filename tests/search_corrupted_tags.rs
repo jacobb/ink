@@ -8,8 +8,8 @@ use tempfile::TempDir;
 /// 1. Skip the corrupted file with a warning, or  
 /// 2. Sanitize the corrupted data and include the file
 ///
-/// Currently this test FAILS because the search crashes with FacetParseError.
-/// The crash occurs in src/note.rs:296 where Facet::from unwraps a facet containing a null byte.
+/// Currently this test FAILS because the search crashes with `FacetParseError`.
+/// The crash occurs in src/note.rs:296 where `Facet::from` unwraps a facet containing a null byte.
 #[test]
 fn test_search_handles_null_byte_in_tag_gracefully() {
     // Create a temporary directory for this test
@@ -50,7 +50,7 @@ This note has a tag with a null byte that currently causes a crash.
 
     // Search should succeed gracefully, not crash
     let output = std::process::Command::new("./target/debug/ink")
-        .args(&["search", "note"])
+        .args(["search", "note"])
         .output()
         .expect("Failed to execute command");
 
@@ -67,8 +67,7 @@ This note has a tag with a null byte that currently causes a crash.
     // At minimum, the valid note should be found
     assert!(
         stdout.contains("Valid Note"),
-        "Search should find at least the valid note, got: {}",
-        stdout
+        "Search should find at least the valid note, got: {stdout}"
     );
 
     // The corrupted file should either be:
@@ -79,10 +78,7 @@ This note has a tag with a null byte that currently causes a crash.
     // Optionally check stderr for warnings about corrupted files
     let stderr = String::from_utf8_lossy(&output.stderr);
     if stderr.contains("warning") || stderr.contains("corrupt") {
-        println!(
-            "Good: Search emitted warning about corrupted file: {}",
-            stderr
-        );
+        println!("Good: Search emitted warning about corrupted file: {stderr}");
     }
 }
 
@@ -107,8 +103,5 @@ fn test_null_byte_in_tag_causes_search_crash_documentation() {
     // 4. get_field_facets() tries to parse the facet with Facet::from()
     // 5. Tantivy's facet parser rejects the null byte and panics
 
-    println!(
-        "This test documents the null byte issue in tag: {:?}",
-        problematic_tag
-    );
+    println!("This test documents the null byte issue in tag: {problematic_tag:?}");
 }
