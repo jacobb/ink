@@ -46,7 +46,8 @@ This note has a tag with a null byte that currently causes a crash.
     fs::write(corrupted_note_path, corrupted_note_content).expect("Failed to write corrupted note");
 
     // Set up cache directory to avoid "DoesNotExist" error
-    let cache_dir = temp_dir.path().join("cache");
+    // The settings code appends "ink" to XDG_CACHE_HOME, so we need to create that subdirectory
+    let cache_dir = temp_dir.path().join("ink");
     fs::create_dir_all(&cache_dir).expect("Failed to create cache directory");
 
     // Search should succeed gracefully, not crash
