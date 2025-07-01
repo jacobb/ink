@@ -50,23 +50,32 @@ This note has a tag with a null byte that currently causes a crash.
     let cache_dir = temp_dir.path().join("ink");
     fs::create_dir_all(&cache_dir).expect("Failed to create cache directory");
 
-    // Search should succeed gracefully, not crash
+    // First, index the notes to create the search index
+    let _index_output = std::process::Command::new("./target/debug/ink")
+        .args(["index"])
+        .env("INK_NOTES_DIR", notes_dir.to_str().unwrap())
+        .env("INK_CACHE_DIR", cache_dir.to_str().unwrap())
+        .output()
+        .expect("Failed to execute index command");
+
+    // Then search should succeed gracefully, not crash
     let output = std::process::Command::new("./target/debug/ink")
         .args(["search", "note"])
         .env("INK_NOTES_DIR", notes_dir.to_str().unwrap())
-        .env("XDG_CACHE_HOME", temp_dir.path().to_str().unwrap())
+        .env("INK_CACHE_DIR", cache_dir.to_str().unwrap())
         .output()
         .expect("Failed to execute command");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
     // The search command should succeed (not crash)
     assert!(
         output.status.success(),
         "Search should handle corrupted files gracefully, but crashed with: {:?}\nstderr: {}",
         output.status,
-        String::from_utf8_lossy(&output.stderr)
+        stderr
     );
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
 
     // At minimum, the valid note should be found
     assert!(
