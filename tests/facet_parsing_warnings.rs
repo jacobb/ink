@@ -115,5 +115,5 @@ A note with a prompt tag.
     }
 
     // Ensure search works regardless
-    assert!(stdout.is_empty(), "Search should return results");
+    assert!(!stdout.is_empty(), "Search should return results");
 }
