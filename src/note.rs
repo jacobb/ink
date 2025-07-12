@@ -293,7 +293,9 @@ fn get_field_facets(document: &Document, schema: &Schema, field_name: &str) -> V
 
     for value in document.get_all(field) {
         if let Some(facet_str) = value.as_facet() {
-            match Facet::from_text(facet_str) {
+            // In Tantivy 0.24, as_facet() returns the encoded format
+            // Use from_encoded to properly reconstruct the Facet
+            match Facet::from_encoded(facet_str.as_bytes().to_vec()) {
                 Ok(facet) => facets.push(facet),
                 Err(e) => {
                     eprintln!("Warning: Skipping invalid facet '{facet_str}': {e}");
