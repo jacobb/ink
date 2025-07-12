@@ -4,4 +4,11 @@ repos:
   hooks:
     - id: fmt
     - id: cargo-check
+- repo: local
+  hooks:
     - id: clippy
+      name: clippy
+      entry: cargo clippy --all-targets --all-features
+      language: system
+      types: [rust]
+      pass_filenames: false

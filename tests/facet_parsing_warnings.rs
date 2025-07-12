@@ -81,8 +81,7 @@ A note with a prompt tag.
     // The search should succeed despite any warnings
     assert!(
         search_output.status.success(),
-        "Search should succeed even with facet warnings. stderr: {}",
-        stderr
+        "Search should succeed even with facet warnings. stderr: {stderr}",
     );
 
     // Should find all three notes in the results (using the title from frontmatter)
@@ -106,18 +105,15 @@ A note with a prompt tag.
         println!("Current behavior - Found facet parsing warnings (this indicates the bug):");
         for line in stderr.lines() {
             if line.contains("Skipping invalid facet") {
-                println!("  {}", line);
+                println!("  {line}");
             }
         }
         // FAIL the test if we find warnings - this is what we want to fix
-        panic!(
-            "Found facet parsing warnings that should be fixed! stderr: {}",
-            stderr
-        );
+        panic!("Found facet parsing warnings that should be fixed! stderr: {stderr}");
     } else {
         println!("✓ No facet parsing warnings found - fix is working correctly");
     }
 
     // Ensure search works regardless
-    assert!(stdout.len() > 0, "Search should return results");
+    assert!(stdout.is_empty(), "Search should return results");
 }
