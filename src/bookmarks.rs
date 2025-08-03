@@ -21,8 +21,8 @@ fn contains_url(entry: &DirEntry) -> bool {
     };
     let matter = Matter::<YAML>::new();
     let raw_markdown = get_markdown_str(path_str);
-    let result = matter.parse_with_struct::<BookmarkFrontMatter>(&raw_markdown);
-    result.is_some()
+    let result = matter.parse::<BookmarkFrontMatter>(&raw_markdown);
+    result.is_ok()
 }
 
 pub fn mark(is_json: bool) {
