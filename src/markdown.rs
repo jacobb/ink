@@ -38,20 +38,21 @@ pub fn markdown(markdown_input: &str) -> Result<String, Box<dyn std::error::Erro
 
 pub fn frontmatter(markdown_input: &str) -> ParsedMarkdown {
     let matter = Matter::<YAML>::new();
-    matter
-        .parse_with_struct::<NoteFrontMatter>(markdown_input)
-        .map_or_else(
-            || ParsedMarkdown {
-                title: None,
-                tags: None,
-                url: None,
-                content: markdown_input.to_string(),
-            },
-            |entity| ParsedMarkdown {
-                title: entity.data.title,
-                tags: entity.data.tags,
-                url: entity.data.url,
+    matter.parse::<NoteFrontMatter>(markdown_input).map_or_else(
+        |_| ParsedMarkdown {
+            title: None,
+            tags: None,
+            url: None,
+            content: markdown_input.to_string(),
+        },
+        |entity| {
+            let data = entity.data.as_ref();
+            ParsedMarkdown {
+                title: data.and_then(|d| d.title.clone()),
+                tags: data.and_then(|d| d.tags.clone()),
+                url: data.and_then(|d| d.url.clone()),
                 content: entity.content,
-            },
-        )
+            }
+        },
+    )
 }
