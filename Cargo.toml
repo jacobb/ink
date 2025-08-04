@@ -24,7 +24,7 @@ warnings = "deny"
 strip = "symbols"
 
 [dependencies]
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.42", features = ["derive"] }
 config = {version = "0.15.13", features = ["toml"] }
 chrono = {version = "0.4.23", features = ["serde"] }
 minijinja = "2.11.0"
