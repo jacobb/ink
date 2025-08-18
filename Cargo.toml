@@ -38,6 +38,7 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 scraper = "0.23"
 regex = "1.10.3"
 globset = "0.4"
+slab = "0.4.11"
 
 # Security updates for vulnerable dependencies
 crossbeam-channel = "0.5.15"
