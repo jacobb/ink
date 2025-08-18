@@ -195,6 +195,28 @@ impl Note {
         note.tags.insert("bookmark".to_string());
         note
     }
+    #[cfg(test)]
+    pub fn new_bookmark_with_title(
+        url: &str,
+        title: String,
+        maybe_id: Option<String>,
+        maybe_description: Option<String>,
+    ) -> Self {
+        let id = maybe_id.unwrap_or(slugify(&title));
+        let path = format!("{id}.md");
+        let mut note = Note {
+            body: maybe_description,
+            id,
+            path: Some(path),
+            title,
+            tags: HashSet::new(),
+            url: Some(url.to_string()),
+            created: None,
+            modified: None,
+        };
+        note.tags.insert("bookmark".to_string());
+        note
+    }
     pub fn add_tag(&mut self, tag: String) {
         self.tags.insert(tag);
     }
@@ -440,7 +462,12 @@ mod tests {
 
     #[test]
     fn test_note_new_bookmark_basic() {
-        let note = Note::new_bookmark("https://example.com", None, None);
+        let note = Note::new_bookmark_with_title(
+            "https://example.com",
+            "Example Domain".to_string(),
+            None,
+            None,
+        );
 
         assert_eq!(note.url, Some("https://example.com".to_string()));
         assert!(note.tags.contains("bookmark"));
@@ -452,7 +479,12 @@ mod tests {
 
     #[test]
     fn test_note_new_bookmark_with_custom_id() {
-        let note = Note::new_bookmark("https://example.com", Some("my-bookmark".to_string()), None);
+        let note = Note::new_bookmark_with_title(
+            "https://example.com",
+            "Example Domain".to_string(),
+            Some("my-bookmark".to_string()),
+            None,
+        );
 
         assert_eq!(note.id, "my-bookmark");
         assert_eq!(note.path, Some("my-bookmark.md".to_string()));
@@ -463,7 +495,12 @@ mod tests {
     #[test]
     fn test_note_new_bookmark_with_description() {
         let description = Some("This is a great website".to_string());
-        let note = Note::new_bookmark("https://example.com", None, description.clone());
+        let note = Note::new_bookmark_with_title(
+            "https://example.com",
+            "Example Domain".to_string(),
+            None,
+            description.clone(),
+        );
 
         assert_eq!(note.body, description);
         assert_eq!(note.url, Some("https://example.com".to_string()));
