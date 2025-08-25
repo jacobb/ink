@@ -27,23 +27,23 @@ strip = "symbols"
 clap = { version = "4.5.45", features = ["derive"] }
 config = {version = "0.15.14", features = ["toml"] }
 chrono = {version = "0.4.23", features = ["serde"] }
-minijinja = "2.11.0"
+minijinja = "2.12.0"
 gray_matter = "0.3.2"
 walkdir = "2.3.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tantivy = "0.24"
+tantivy = "0.25"
 dirs = "6.0"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 scraper = "0.24"
-regex = "1.10.3"
+regex = "1.11.2"
 globset = "0.4"
 slab = "0.4.11"
 
 # Security updates for vulnerable dependencies
 crossbeam-channel = "0.5.15"
-idna = "1.0.0"
+idna = "1.1.0"
 openssl = "0.10.72"
 
 [dev-dependencies]
-tempfile = "3.12"
+tempfile = "3.21"
