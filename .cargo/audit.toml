@@ -1,0 +1,6 @@
+[advisories]
+# lru 0.12.x has a Stacked Borrows violation (RUSTSEC-2026-0002), fixed in 0.16.3.
+# tantivy pins lru to ^0.12, so we can't upgrade until tantivy releases with
+# the fix (merged to main in PR #2799, pending release).
+# Tracking: https://github.com/quickwit-oss/tantivy/issues/2796
+ignore = ["RUSTSEC-2026-0002"]
