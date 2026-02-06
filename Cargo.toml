@@ -43,7 +43,6 @@ slab = "0.4.11"
 # Security updates for vulnerable dependencies
 crossbeam-channel = "0.5.15"
 idna = "1.0.0"
-openssl = "0.10.72"
 
 [dev-dependencies]
 tempfile = "3.12"

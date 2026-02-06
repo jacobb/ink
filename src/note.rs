@@ -107,7 +107,7 @@ impl Note {
         let tag_facets = get_field_facets(document, schema, "tag");
         let tags: HashSet<String> = tag_facets
             .into_iter()
-            .map(|facet| facet.to_string().replace("/tag/", "").to_string())
+            .map(|facet| facet.to_string().replace("/tag/", ""))
             .collect();
 
         let path = get_field_string_from_document(document, schema, "path").unwrap();
