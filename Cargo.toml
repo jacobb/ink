@@ -25,7 +25,7 @@ strip = "symbols"
 
 [dependencies]
 clap = { version = "4.5.57", features = ["derive"] }
-config = {version = "0.15.16", features = ["toml"] }
+config = {version = "0.15.19", features = ["toml"] }
 chrono = {version = "0.4.43", features = ["serde"] }
 minijinja = "2.15.1"
 gray_matter = "0.3.2"
