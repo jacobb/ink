@@ -24,10 +24,10 @@ warnings = "deny"
 strip = "symbols"
 
 [dependencies]
-clap = { version = "4.5.57", features = ["derive"] }
+clap = { version = "4.5.60", features = ["derive"] }
 config = {version = "0.15.19", features = ["toml"] }
 chrono = {version = "0.4.43", features = ["serde"] }
-minijinja = "2.15.1"
+minijinja = "2.16.0"
 gray_matter = "0.3.2"
 walkdir = "2.3.2"
 serde = { version = "1.0", features = ["derive"] }
@@ -45,4 +45,4 @@ crossbeam-channel = "0.5.15"
 idna = "1.1.0"
 
 [dev-dependencies]
-tempfile = "3.24"
+tempfile = "3.25"
