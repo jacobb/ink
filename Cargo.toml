@@ -24,18 +24,18 @@ warnings = "deny"
 strip = "symbols"
 
 [dependencies]
-clap = { version = "4.5.57", features = ["derive"] }
-config = {version = "0.15.19", features = ["toml"] }
-chrono = {version = "0.4.43", features = ["serde"] }
-minijinja = "2.15.1"
+clap = { version = "4.6.1", features = ["derive"] }
+config = {version = "0.15.22", features = ["toml"] }
+chrono = {version = "0.4.44", features = ["serde"] }
+minijinja = "2.19.0"
 gray_matter = "0.3.2"
 walkdir = "2.3.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tantivy = "0.25"
+tantivy = "0.26"
 dirs = "6.0"
 reqwest = { version = "0.13", features = ["json", "blocking"] }
-scraper = "0.25"
+scraper = "0.26"
 regex = "1.12.3"
 globset = "0.4"
 slab = "0.4.12"
@@ -45,4 +45,4 @@ crossbeam-channel = "0.5.15"
 idna = "1.1.0"
 
 [dev-dependencies]
-tempfile = "3.24"
+tempfile = "3.27"
